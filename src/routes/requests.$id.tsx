@@ -39,21 +39,23 @@ function RequestDetail() {
   const { data: comments } = useQuery({
     queryKey: ["comments", id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("request_comments")
-        .select("*, profiles(full_name,email)")
-        .eq("request_id", id).order("created_at");
-      return data ?? [];
+      const { data } = await supabase.from("request_comments").select("*").eq("request_id", id).order("created_at");
+      if (!data) return [];
+      const ids = Array.from(new Set(data.map((c) => c.user_id)));
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
+      const map = new Map((profs ?? []).map((p) => [p.id, p]));
+      return data.map((c) => ({ ...c, profiles: map.get(c.user_id) }));
     },
   });
   const { data: history } = useQuery({
     queryKey: ["history", id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("request_history")
-        .select("*, profiles(full_name,email)")
-        .eq("request_id", id).order("created_at");
-      return data ?? [];
+      const { data } = await supabase.from("request_history").select("*").eq("request_id", id).order("created_at");
+      if (!data) return [];
+      const ids = Array.from(new Set(data.map((h) => h.user_id).filter(Boolean))) as string[];
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
+      const map = new Map((profs ?? []).map((p) => [p.id, p]));
+      return data.map((h) => ({ ...h, profiles: h.user_id ? map.get(h.user_id) : null }));
     },
   });
   const { data: attachments } = useQuery({
