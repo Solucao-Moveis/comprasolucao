@@ -33,9 +33,13 @@ function RequestsList() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchase_requests")
-        .select("*, sectors(name), profiles!purchase_requests_requester_id_fkey(full_name,email)")
+        .select("*, sectors(name)")
         .order("created_at", { ascending: false });
-      return data ?? [];
+      if (!data) return [];
+      const ids = Array.from(new Set(data.map((r) => r.requester_id)));
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
+      const map = new Map((profs ?? []).map((p) => [p.id, p]));
+      return data.map((r) => ({ ...r, profiles: map.get(r.requester_id) }));
     },
   });
 
