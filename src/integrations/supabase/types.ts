@@ -14,16 +14,309 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cost_centers: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      purchase_requests: {
+        Row: {
+          approver_id: string | null
+          cost_center_id: string | null
+          created_at: string
+          decided_at: string | null
+          decision_note: string | null
+          description: string
+          finalized_at: string | null
+          id: string
+          justification: string
+          needed_by: string
+          number: string | null
+          priority: Database["public"]["Enums"]["request_priority"]
+          quantity: number
+          requester_id: string
+          sector_id: string
+          status: Database["public"]["Enums"]["request_status"]
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          approver_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          description: string
+          finalized_at?: string | null
+          id?: string
+          justification: string
+          needed_by: string
+          number?: string | null
+          priority?: Database["public"]["Enums"]["request_priority"]
+          quantity: number
+          requester_id: string
+          sector_id: string
+          status?: Database["public"]["Enums"]["request_status"]
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          approver_id?: string | null
+          cost_center_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decision_note?: string | null
+          description?: string
+          finalized_at?: string | null
+          id?: string
+          justification?: string
+          needed_by?: string
+          number?: string | null
+          priority?: Database["public"]["Enums"]["request_priority"]
+          quantity?: number
+          requester_id?: string
+          sector_id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_cost_center_id_fkey"
+            columns: ["cost_center_id"]
+            isOneToOne: false
+            referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_attachments: {
+        Row: {
+          created_at: string
+          filename: string
+          id: string
+          path: string
+          request_id: string
+          size: number | null
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          filename: string
+          id?: string
+          path: string
+          request_id: string
+          size?: number | null
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          filename?: string
+          id?: string
+          path?: string
+          request_id?: string
+          size?: number | null
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_attachments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          request_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          request_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          request_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_comments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_history: {
+        Row: {
+          action: string
+          created_at: string
+          from_status: Database["public"]["Enums"]["request_status"] | null
+          id: string
+          request_id: string
+          to_status: Database["public"]["Enums"]["request_status"] | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["request_status"] | null
+          id?: string
+          request_id: string
+          to_status?: Database["public"]["Enums"]["request_status"] | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          from_status?: Database["public"]["Enums"]["request_status"] | null
+          id?: string
+          request_id?: string
+          to_status?: Database["public"]["Enums"]["request_status"] | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_history_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_sequences: {
+        Row: {
+          last_number: number
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          year: number
+        }
+        Update: {
+          last_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
+      sectors: {
+        Row: {
+          approver_id: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          approver_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          approver_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_sector_approver: {
+        Args: { _sector_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "aprovador" | "solicitante" | "comprador"
+      request_priority: "baixa" | "media" | "alta"
+      request_status: "pendente" | "aprovado" | "negado" | "finalizado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +443,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "aprovador", "solicitante", "comprador"],
+      request_priority: ["baixa", "media", "alta"],
+      request_status: ["pendente", "aprovado", "negado", "finalizado"],
+    },
   },
 } as const
