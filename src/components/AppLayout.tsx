@@ -75,7 +75,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </nav>
       <main className="md:pl-60">
         <div className="mx-auto max-w-7xl p-4 md:p-8">
-          <Outlet />
+          {children}
         </div>
       </main>
     </div>

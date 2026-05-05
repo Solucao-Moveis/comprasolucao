@@ -29,9 +29,11 @@ function RequestDetail() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchase_requests")
-        .select("*, sectors(name,approver_id), cost_centers(code,name), profiles!purchase_requests_requester_id_fkey(full_name,email)")
+        .select("*, sectors(name,approver_id), cost_centers(code,name)")
         .eq("id", id).single();
-      return data;
+      if (!data) return null;
+      const { data: prof } = await supabase.from("profiles").select("full_name,email").eq("id", data.requester_id).single();
+      return { ...data, profiles: prof };
     },
   });
   const { data: comments } = useQuery({
