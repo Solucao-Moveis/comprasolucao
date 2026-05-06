@@ -122,10 +122,7 @@ function RequestsList() {
               <SelectItem value="alta">Alta</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex gap-2">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
       </Card>
 
