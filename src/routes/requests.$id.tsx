@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,10 +6,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id")({
@@ -20,6 +24,7 @@ function RequestDetail() {
   const { id } = Route.useParams();
   const { user, roles } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [comment, setComment] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -94,6 +99,26 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
+  const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
+
+  const remove = async () => {
+    setBusy(true);
+    // remove attachments from storage
+    const { data: atts } = await supabase.from("request_attachments").select("path").eq("request_id", id);
+    if (atts && atts.length > 0) {
+      await supabase.storage.from("request-attachments").remove(atts.map((a) => a.path));
+    }
+    await supabase.from("request_attachments").delete().eq("request_id", id);
+    await supabase.from("request_comments").delete().eq("request_id", id);
+    await supabase.from("request_history").delete().eq("request_id", id);
+    const { error } = await supabase.from("purchase_requests").delete().eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Solicitação excluída");
+    qc.invalidateQueries({ queryKey: ["requests"] });
+    navigate({ to: "/requests" });
+  };
+
   const addComment = async () => {
     if (!comment.trim()) return;
     const { error } = await supabase.from("request_comments").insert({
@@ -113,8 +138,29 @@ function RequestDetail() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild><Link to="/requests"><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button>
+        {canDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={busy}>
+                <Trash2 className="mr-2 h-4 w-4" />Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Esta ação não pode ser desfeita. A solicitação {req.number}, seus comentários, anexos e histórico serão removidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={remove}>Excluir</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">

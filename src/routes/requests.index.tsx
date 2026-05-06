@@ -21,7 +21,6 @@ function RequestsList() {
   const [sector, setSector] = useState<string>("all");
   const [priority, setPriority] = useState<string>("all");
   const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -49,7 +48,7 @@ function RequestsList() {
       if (sector !== "all" && r.sector_id !== sector) return false;
       if (priority !== "all" && r.priority !== priority) return false;
       if (from && new Date(r.created_at) < new Date(from)) return false;
-      if (to && new Date(r.created_at) > new Date(to + "T23:59:59")) return false;
+      
       if (q) {
         const s = q.toLowerCase();
         const hay = `${r.number} ${r.description} ${r.profiles?.full_name ?? ""} ${r.profiles?.email ?? ""}`.toLowerCase();
@@ -57,7 +56,7 @@ function RequestsList() {
       }
       return true;
     });
-  }, [requests, q, status, sector, priority, from, to]);
+  }, [requests, q, status, sector, priority, from]);
 
   const exportCSV = () => {
     const rows = [
@@ -123,10 +122,7 @@ function RequestsList() {
               <SelectItem value="alta">Alta</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex gap-2">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </div>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
       </Card>
 
