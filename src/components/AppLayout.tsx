@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 export function AppLayout({ children }: { children: ReactNode }) {
@@ -20,6 +20,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const nav = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/requests", icon: FileText, label: "Solicitações" },
+    { to: "/approvals", icon: CheckSquare, label: "Aprovações" },
     { to: "/requests/new", icon: Plus, label: "Nova" },
   ];
 
