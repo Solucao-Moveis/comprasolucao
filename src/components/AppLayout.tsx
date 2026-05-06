@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 export function AppLayout({ children }: { children: ReactNode }) {
