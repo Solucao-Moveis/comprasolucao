@@ -56,7 +56,7 @@ function RequestsList() {
       }
       return true;
     });
-  }, [requests, q, status, sector, priority, from, to]);
+  }, [requests, q, status, sector, priority, from]);
 
   const exportCSV = () => {
     const rows = [
