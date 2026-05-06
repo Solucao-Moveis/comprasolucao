@@ -24,6 +24,7 @@ function RequestDetail() {
   const { id } = Route.useParams();
   const { user, roles } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [comment, setComment] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [busy, setBusy] = useState(false);
