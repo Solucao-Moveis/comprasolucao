@@ -39,6 +39,11 @@ function NewRequest() {
     queryKey: ["sectors"],
     queryFn: async () => (await supabase.from("sectors").select("id,name").order("name")).data ?? [],
   });
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    enabled: !!user,
+    queryFn: async () => (await supabase.from("profiles").select("full_name,email").eq("id", user!.id).single()).data,
+  });
   const { data: ccs } = useQuery({
     queryKey: ["cost_centers"],
     queryFn: async () => (await supabase.from("cost_centers").select("id,code,name").order("code")).data ?? [],
@@ -96,6 +101,10 @@ function NewRequest() {
         <Card className="p-6 space-y-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Identificação</h3>
           <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Nome do solicitante</Label>
+              <Input value={profile?.full_name ?? profile?.email ?? user?.email ?? ""} disabled />
+            </div>
             <div className="space-y-2">
               <Label>Setor solicitante *</Label>
               <Select name="sector_id"><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
