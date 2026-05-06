@@ -1,11 +1,11 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 
 export function AppLayout({ children }: { children: ReactNode }) {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, roles } = useAuth();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
@@ -17,11 +17,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
     return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Carregando...</div>;
   }
 
+  const isAdmin = roles.includes("admin");
   const nav = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/requests", icon: FileText, label: "Solicitações" },
     { to: "/approvals", icon: CheckSquare, label: "Aprovações" },
     { to: "/requests/new", icon: Plus, label: "Nova" },
+    ...(isAdmin ? [{ to: "/admin", icon: Settings, label: "Administração" }] : []),
   ];
 
   return (
