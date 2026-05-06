@@ -1,0 +1,1 @@
+CREATE POLICY pr_delete_owner_pending ON public.purchase_requests FOR DELETE TO authenticated USING (requester_id = auth.uid() AND status = 'pendente');
