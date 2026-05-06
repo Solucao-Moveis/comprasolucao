@@ -48,7 +48,7 @@ function RequestsList() {
       if (sector !== "all" && r.sector_id !== sector) return false;
       if (priority !== "all" && r.priority !== priority) return false;
       if (from && new Date(r.created_at) < new Date(from)) return false;
-      if (to && new Date(r.created_at) > new Date(to + "T23:59:59")) return false;
+      
       if (q) {
         const s = q.toLowerCase();
         const hay = `${r.number} ${r.description} ${r.profiles?.full_name ?? ""} ${r.profiles?.email ?? ""}`.toLowerCase();
