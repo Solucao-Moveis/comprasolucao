@@ -99,6 +99,26 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
+  const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
+
+  const remove = async () => {
+    setBusy(true);
+    // remove attachments from storage
+    const { data: atts } = await supabase.from("request_attachments").select("path").eq("request_id", id);
+    if (atts && atts.length > 0) {
+      await supabase.storage.from("request-attachments").remove(atts.map((a) => a.path));
+    }
+    await supabase.from("request_attachments").delete().eq("request_id", id);
+    await supabase.from("request_comments").delete().eq("request_id", id);
+    await supabase.from("request_history").delete().eq("request_id", id);
+    const { error } = await supabase.from("purchase_requests").delete().eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Solicitação excluída");
+    qc.invalidateQueries({ queryKey: ["requests"] });
+    navigate({ to: "/requests" });
+  };
+
   const addComment = async () => {
     if (!comment.trim()) return;
     const { error } = await supabase.from("request_comments").insert({
