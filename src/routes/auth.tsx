@@ -39,6 +39,20 @@ function AuthPage() {
     if (error) toast.error(error.message); else toast.success("Bem-vindo!");
   };
 
+  const handleReset = async () => {
+    const email = window.prompt("Informe o e-mail cadastrado para receber o link de redefinição:");
+    if (!email) return;
+    const parsed = z.string().email().safeParse(email);
+    if (!parsed.success) { toast.error("E-mail inválido"); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else toast.success("Enviamos um link de redefinição para seu e-mail.");
+  };
+
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
