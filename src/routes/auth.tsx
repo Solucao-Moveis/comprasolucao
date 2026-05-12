@@ -96,6 +96,9 @@ function AuthPage() {
                 <div className="space-y-2"><Label htmlFor="le">Email</Label><Input id="le" name="email" type="email" required /></div>
                 <div className="space-y-2"><Label htmlFor="lp">Senha</Label><Input id="lp" name="password" type="password" required /></div>
                 <Button type="submit" className="w-full" disabled={busy}>{busy ? "Entrando..." : "Entrar"}</Button>
+                <button type="button" onClick={handleReset} className="w-full text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline">
+                  Esqueci minha senha
+                </button>
               </form>
             </TabsContent>
             <TabsContent value="signup">
