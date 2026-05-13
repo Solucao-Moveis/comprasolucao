@@ -30,7 +30,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <aside className="fixed inset-y-0 left-0 hidden w-60 border-r bg-sidebar md:flex md:flex-col">
+      <img
+        src={logo}
+        alt=""
+        aria-hidden
+        style={{ pointerEvents: "none" }}
+        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] max-w-[640px] opacity-15 select-none md:left-[calc(50%+120px)]"
+      />
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 border-r bg-sidebar md:flex md:flex-col">
         <div className="flex items-center gap-3 px-4 py-4 border-b">
           <img src={logo} alt="Solução Móveis" className="h-10 w-10 rounded-md object-contain bg-white" />
           <div>
