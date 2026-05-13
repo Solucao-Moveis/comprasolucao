@@ -30,6 +30,7 @@ function RequestDetail() {
   const [comment, setComment] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [purchaseAmount, setPurchaseAmount] = useState("");
 
   const { data: req } = useQuery({
     queryKey: ["request", id],
