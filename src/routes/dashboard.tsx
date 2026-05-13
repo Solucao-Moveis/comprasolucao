@@ -18,7 +18,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data: requests } = await supabase
         .from("purchase_requests")
-        .select("id,status,priority,created_at,decided_at,sector_id,sectors(name)");
+        .select("id,status,priority,created_at,decided_at,sector_id,purchase_amount,cost_center_id,sectors(name),cost_centers(code,name)");
       return requests ?? [];
     },
   });
