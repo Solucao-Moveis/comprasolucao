@@ -99,6 +99,40 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
+  const markPurchased = async () => {
+    setBusy(true);
+    const { error } = await supabase.from("purchase_requests").update({
+      purchased_at: new Date().toISOString(),
+    }).eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Compra registrada");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+  };
+
+  const markArrived = async () => {
+    setBusy(true);
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase.from("purchase_requests").update({
+      arrived_at: nowIso,
+      status: "finalizado",
+      finalized_at: req.finalized_at ?? nowIso,
+    }).eq("id", id);
+    if (!error) {
+      await supabase.from("notifications").insert({
+        user_id: req.requester_id,
+        request_id: id,
+        title: "Material recebido",
+        body: `O material da solicitação ${req.number} chegou.`,
+      });
+    }
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Chegada registrada e solicitante notificado");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+  };
+
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
 
   const remove = async () => {
