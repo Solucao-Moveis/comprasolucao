@@ -1,21 +1,29 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
 import { useMemo, useState } from "react";
-import { Plus, Search, Download } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/requests/")({
   component: () => <AppLayout><RequestsList /></AppLayout>,
 });
 
 function RequestsList() {
+  const { user, roles } = useAuth();
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sector, setSector] = useState<string>("all");
@@ -137,14 +145,16 @@ function RequestsList() {
                 <th className="px-4 py-3">Solicitante</th>
                 <th className="px-4 py-3">Prioridade</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Data</th>
+                <th className="px-4 py-3 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
               )}
-              {filtered.map((r: any) => (
+              {filtered.map((r: any) => {
+                const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
+                return (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
@@ -154,9 +164,51 @@ function RequestsList() {
                   <td className="px-4 py-3">{r.profiles?.full_name ?? r.profiles?.email}</td>
                   <td className="px-4 py-3"><PriorityBadge priority={r.priority} /></td>
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                  <td className="px-4 py-3 text-muted-foreground">{format(new Date(r.created_at), "dd/MM/yyyy")}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-1">
+                      {canModify && (
+                        <>
+                          <Button asChild size="icon" variant="ghost" title="Editar">
+                            <Link to="/requests/$id/edit" params={{ id: r.id }}><Pencil className="h-4 w-4" /></Link>
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" title="Excluir"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  A solicitação {r.number} e seus comentários, anexos e histórico serão removidos permanentemente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={async () => {
+                                    const { data: atts } = await supabase.from("request_attachments").select("path").eq("request_id", r.id);
+                                    if (atts && atts.length > 0) {
+                                      await supabase.storage.from("request-attachments").remove(atts.map((a) => a.path));
+                                    }
+                                    await supabase.from("request_attachments").delete().eq("request_id", r.id);
+                                    await supabase.from("request_comments").delete().eq("request_id", r.id);
+                                    await supabase.from("request_history").delete().eq("request_id", r.id);
+                                    const { error } = await supabase.from("purchase_requests").delete().eq("id", r.id);
+                                    if (error) return toast.error(error.message);
+                                    toast.success("Solicitação excluída");
+                                    qc.invalidateQueries({ queryKey: ["requests"] });
+                                  }}
+                                >Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </>
+                      )}
+                    </div>
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
