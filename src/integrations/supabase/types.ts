@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read_at: string | null
+          request_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          request_id?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          request_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -59,6 +89,7 @@ export type Database = {
       purchase_requests: {
         Row: {
           approver_id: string | null
+          arrived_at: string | null
           cost_center_id: string | null
           created_at: string
           decided_at: string | null
@@ -70,6 +101,7 @@ export type Database = {
           needed_by: string
           number: string | null
           priority: Database["public"]["Enums"]["request_priority"]
+          purchased_at: string | null
           quantity: number
           requester_id: string
           sector_id: string
@@ -79,6 +111,7 @@ export type Database = {
         }
         Insert: {
           approver_id?: string | null
+          arrived_at?: string | null
           cost_center_id?: string | null
           created_at?: string
           decided_at?: string | null
@@ -90,6 +123,7 @@ export type Database = {
           needed_by: string
           number?: string | null
           priority?: Database["public"]["Enums"]["request_priority"]
+          purchased_at?: string | null
           quantity: number
           requester_id: string
           sector_id: string
@@ -99,6 +133,7 @@ export type Database = {
         }
         Update: {
           approver_id?: string | null
+          arrived_at?: string | null
           cost_center_id?: string | null
           created_at?: string
           decided_at?: string | null
@@ -110,6 +145,7 @@ export type Database = {
           needed_by?: string
           number?: string | null
           priority?: Database["public"]["Enums"]["request_priority"]
+          purchased_at?: string | null
           quantity?: number
           requester_id?: string
           sector_id?: string
