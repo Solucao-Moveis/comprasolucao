@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, signOut, roles } = useAuth();
