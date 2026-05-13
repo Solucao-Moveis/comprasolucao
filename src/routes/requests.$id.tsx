@@ -234,6 +234,7 @@ function RequestDetail() {
             <Field label="Quantidade" value={`${req.quantity} ${req.unit}`} />
             <Field label="Necessário em" value={format(new Date(req.needed_by), "dd/MM/yyyy")} />
             <Field label="Centro de custo" value={req.cost_centers ? `${req.cost_centers.code} — ${req.cost_centers.name}` : "—"} />
+            <Field label="Valor da compra" value={req.purchase_amount != null ? `R$ ${Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"} />
           </div>
           {req.decision_note && (
             <Section title="Nota da decisão"><p className="whitespace-pre-wrap text-sm">{req.decision_note}</p></Section>
