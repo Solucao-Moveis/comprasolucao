@@ -22,6 +22,8 @@ export const Route = createFileRoute("/requests/")({
 });
 
 function RequestsList() {
+  const { user, roles } = useAuth();
+  const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [sector, setSector] = useState<string>("all");
