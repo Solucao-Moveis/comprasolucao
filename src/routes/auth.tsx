@@ -77,12 +77,10 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <ShoppingCart className="h-6 w-6" />
-          </div>
+          <img src={logo} alt="Solução Móveis" className="h-20 w-20 rounded-xl object-contain bg-white shadow-lg shadow-primary/10" />
           <div>
-            <h1 className="text-2xl font-bold">Sistema de Compras Solução Móveis</h1>
-            <p className="text-sm text-muted-foreground">Solicitações de compra simples e organizadas</p>
+            <h1 className="text-2xl font-bold">Sistema de Compras</h1>
+            <p className="text-sm text-muted-foreground">Solução Móveis</p>
           </div>
         </div>
         <Card className="p-6">

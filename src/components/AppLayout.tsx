@@ -1,9 +1,10 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, LogOut, CheckSquare, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { NotificationsBell } from "@/components/NotificationsBell";
+import logo from "@/assets/logo.png";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, signOut, roles } = useAuth();
@@ -30,13 +31,11 @@ export function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <aside className="fixed inset-y-0 left-0 hidden w-60 border-r bg-sidebar md:flex md:flex-col">
-        <div className="flex items-center gap-2 px-6 py-5 border-b">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <ShoppingCart className="h-5 w-5" />
-          </div>
+        <div className="flex items-center gap-3 px-4 py-4 border-b">
+          <img src={logo} alt="Solução Móveis" className="h-10 w-10 rounded-md object-contain bg-white" />
           <div>
-            <div className="text-sm font-semibold">Compras</div>
-            <div className="text-xs text-muted-foreground">Sistema de Compras Solução Móveis</div>
+            <div className="text-sm font-semibold leading-tight">Solução Móveis</div>
+            <div className="text-xs text-muted-foreground">Sistema de Compras</div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
@@ -68,8 +67,8 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </aside>
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Sistema de Compras Solução Móveis</span>
+          <img src={logo} alt="Solução Móveis" className="h-7 w-7 rounded object-contain bg-white" />
+          <span className="font-semibold text-sm">Sistema de Compras</span>
         </div>
         <div className="flex items-center gap-1">
           <NotificationsBell />
