@@ -103,13 +103,19 @@ function RequestDetail() {
   };
 
   const markPurchased = async () => {
+    const amount = parseFloat(purchaseAmount.replace(",", "."));
+    if (!purchaseAmount || isNaN(amount) || amount <= 0) {
+      return toast.error("Informe o valor da compra");
+    }
     setBusy(true);
     const { error } = await supabase.from("purchase_requests").update({
       purchased_at: new Date().toISOString(),
+      purchase_amount: amount,
     }).eq("id", id);
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Compra registrada");
+    setPurchaseAmount("");
     qc.invalidateQueries({ queryKey: ["request", id] });
   };
 
