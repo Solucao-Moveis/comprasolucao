@@ -33,15 +33,13 @@ export function NotificationsBell() {
   useEffect(() => {
     load();
     if (!user) return;
-    const ch = supabase
-      .channel(`notif-${user.id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          const n = payload.new as Notif;
-          setItems((prev) => [n, ...prev]);
-          toast.success(n.title, { description: n.body ?? undefined });
-        })
-      .subscribe();
+    const ch = supabase.channel(`notif-${user.id}-${Math.random().toString(36).slice(2)}`);
+    ch.on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+      (payload) => {
+        const n = payload.new as Notif;
+        setItems((prev) => [n, ...prev]);
+        toast.success(n.title, { description: n.body ?? undefined });
+      }).subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
