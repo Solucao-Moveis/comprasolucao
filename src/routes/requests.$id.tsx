@@ -174,27 +174,34 @@ function RequestDetail() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild><Link to="/requests"><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button>
-        {canDelete && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={busy}>
-                <Trash2 className="mr-2 h-4 w-4" />Excluir
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. A solicitação {req.number}, seus comentários, anexos e histórico serão removidos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={remove}>Excluir</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+        <div className="flex gap-2">
+          {canEdit && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/requests/$id/edit" params={{ id }}><Pencil className="mr-2 h-4 w-4" />Editar</Link>
+            </Button>
+          )}
+          {canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={busy}>
+                  <Trash2 className="mr-2 h-4 w-4" />Excluir
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A solicitação {req.number}, seus comentários, anexos e histórico serão removidos.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={remove}>Excluir</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
