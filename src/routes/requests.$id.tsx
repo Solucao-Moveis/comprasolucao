@@ -269,11 +269,26 @@ function RequestDetail() {
             </>
           )}
           {canPurchase && (
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
               {!req.purchased_at && (
-                <Button onClick={markPurchased} disabled={busy} variant="outline">
-                  <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
-                </Button>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="purchase_amount">Valor da compra (R$) *</Label>
+                    <Input
+                      id="purchase_amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={purchaseAmount}
+                      onChange={(e) => setPurchaseAmount(e.target.value)}
+                      className="w-48"
+                    />
+                  </div>
+                  <Button onClick={markPurchased} disabled={busy} variant="outline">
+                    <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
+                  </Button>
+                </div>
               )}
               {!req.arrived_at && (
                 <Button onClick={markArrived} disabled={busy} variant="outline">
