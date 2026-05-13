@@ -57,7 +57,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="border-t p-3">
-          <div className="mb-2 px-3 text-xs text-muted-foreground truncate">{user.email}</div>
+          <div className="mb-2 flex items-center justify-between gap-2 px-3">
+            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+            <NotificationsBell />
+          </div>
           <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" /> Sair
           </Button>
