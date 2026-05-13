@@ -81,7 +81,7 @@ function AuthPage() {
         backgroundColor: "#ffffff",
         backgroundImage: `url(${logo}), url(${logo})`,
         backgroundRepeat: "repeat, repeat",
-        backgroundSize: "80px 80px, 80px 80px",
+        backgroundSize: "160px 160px, 160px 160px",
         backgroundPosition: "0 0, 80px 80px",
       }}
     >
