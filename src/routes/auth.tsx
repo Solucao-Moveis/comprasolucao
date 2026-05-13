@@ -85,15 +85,12 @@ function AuthPage() {
         backgroundPosition: "0 0, 80px 80px",
       }}
     >
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
-          <img src={logo} alt="Solução Móveis" className="h-20 w-20 rounded-xl object-contain bg-white shadow-lg shadow-primary/10" />
-          <div>
-            <h1 className="text-2xl font-bold">Sistema de Compras</h1>
-            <p className="text-sm text-muted-foreground">Solução Móveis</p>
-          </div>
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold">Sistema de Compras</h1>
+          <p className="text-sm text-muted-foreground">Solução Móveis</p>
         </div>
-        <Card className="p-6">
+        <Card className="p-6 shadow-none border-0">
           <Tabs defaultValue="login">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
