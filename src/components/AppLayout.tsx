@@ -36,7 +36,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </div>
           <div>
             <div className="text-sm font-semibold">Compras</div>
-            <div className="text-xs text-muted-foreground">SC Manager</div>
+            <div className="text-xs text-muted-foreground">Sistema de Compras Solução Móveis</div>
           </div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
@@ -69,7 +69,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-5 w-5 text-primary" />
-          <span className="font-semibold">SC Manager</span>
+          <span className="font-semibold">Sistema de Compras Solução Móveis</span>
         </div>
         <div className="flex items-center gap-1">
           <NotificationsBell />

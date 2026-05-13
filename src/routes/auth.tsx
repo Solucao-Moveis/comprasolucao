@@ -81,7 +81,7 @@ function AuthPage() {
             <ShoppingCart className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">SC Manager</h1>
+            <h1 className="text-2xl font-bold">Sistema de Compras Solução Móveis</h1>
             <p className="text-sm text-muted-foreground">Solicitações de compra simples e organizadas</p>
           </div>
         </div>
