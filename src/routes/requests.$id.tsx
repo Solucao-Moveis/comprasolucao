@@ -235,15 +235,16 @@ function RequestDetail() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
           <Field label="Setor" value={req.sectors?.name ?? "—"} />
           <Field label="Solicitante" value={req.profiles?.full_name ?? req.profiles?.email ?? "—"} />
-          <Field label="Criada em" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />
-          {req.decided_at && <Field label="Decidida em" value={format(new Date(req.decided_at), "dd/MM/yyyy HH:mm")} />}
-          {req.finalized_at && <Field label="Finalizada em" value={format(new Date(req.finalized_at), "dd/MM/yyyy HH:mm")} />}
+          <Field label="Data da solicitação" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />
+          <Field label="Data da aprovação" value={req.decided_at ? format(new Date(req.decided_at), "dd/MM/yyyy HH:mm") : "—"} />
+          <Field label="Data da compra" value={req.purchased_at ? format(new Date(req.purchased_at), "dd/MM/yyyy HH:mm") : "—"} />
+          <Field label="Data de chegada" value={req.arrived_at ? format(new Date(req.arrived_at), "dd/MM/yyyy HH:mm") : "—"} />
         </Card>
       </div>
 
-      {(canDecide || canFinalize) && (
+      {(canDecide || canFinalize || canPurchase) && (
         <Card className="p-6 space-y-4 border-primary/30">
-          <h3 className="text-sm font-semibold">Ações de aprovação</h3>
+          <h3 className="text-sm font-semibold">Ações</h3>
           {canDecide && (
             <>
               <Textarea placeholder="Nota (opcional)" value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} rows={2} />
@@ -257,7 +258,21 @@ function RequestDetail() {
               </div>
             </>
           )}
-          {canFinalize && (
+          {canPurchase && (
+            <div className="flex flex-wrap gap-2">
+              {!req.purchased_at && (
+                <Button onClick={markPurchased} disabled={busy} variant="outline">
+                  <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
+                </Button>
+              )}
+              {!req.arrived_at && (
+                <Button onClick={markArrived} disabled={busy} variant="outline">
+                  <Truck className="mr-2 h-4 w-4" />Registrar chegada do material
+                </Button>
+              )}
+            </div>
+          )}
+          {canFinalize && !canPurchase && (
             <Button onClick={finalize} disabled={busy} variant="outline">
               <PackageCheck className="mr-2 h-4 w-4" />Marcar como finalizada
             </Button>
