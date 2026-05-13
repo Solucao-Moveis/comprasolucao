@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, FileText, Plus, LogOut, ShoppingCart, CheckSquare, Settings } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, signOut, roles } = useAuth();
@@ -56,7 +57,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="border-t p-3">
-          <div className="mb-2 px-3 text-xs text-muted-foreground truncate">{user.email}</div>
+          <div className="mb-2 flex items-center justify-between gap-2 px-3">
+            <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+            <NotificationsBell />
+          </div>
           <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" /> Sair
           </Button>
@@ -67,7 +71,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <ShoppingCart className="h-5 w-5 text-primary" />
           <span className="font-semibold">SC Manager</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
+        <div className="flex items-center gap-1">
+          <NotificationsBell />
+          <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
+        </div>
       </header>
       <nav className="sticky top-[57px] z-10 flex gap-1 overflow-x-auto border-b bg-background px-2 py-2 md:hidden">
         {nav.map((n) => (

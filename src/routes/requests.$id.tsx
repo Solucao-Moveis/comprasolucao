@@ -13,7 +13,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id")({
@@ -99,7 +99,43 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
+  const markPurchased = async () => {
+    setBusy(true);
+    const { error } = await supabase.from("purchase_requests").update({
+      purchased_at: new Date().toISOString(),
+    }).eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Compra registrada");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+  };
+
+  const markArrived = async () => {
+    setBusy(true);
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase.from("purchase_requests").update({
+      arrived_at: nowIso,
+      status: "finalizado",
+      finalized_at: req.finalized_at ?? nowIso,
+    }).eq("id", id);
+    if (!error) {
+      await supabase.from("notifications").insert({
+        user_id: req.requester_id,
+        request_id: id,
+        title: "Material recebido",
+        body: `O material da solicitação ${req.number} chegou.`,
+      });
+    }
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Chegada registrada e solicitante notificado");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+  };
+
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
+  const canEdit = canDelete;
+  const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && req.status === "aprovado" && !req.arrived_at;
 
   const remove = async () => {
     setBusy(true);
@@ -140,27 +176,34 @@ function RequestDetail() {
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild><Link to="/requests"><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button>
-        {canDelete && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={busy}>
-                <Trash2 className="mr-2 h-4 w-4" />Excluir
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. A solicitação {req.number}, seus comentários, anexos e histórico serão removidos.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={remove}>Excluir</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        )}
+        <div className="flex gap-2">
+          {canEdit && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/requests/$id/edit" params={{ id }}><Pencil className="mr-2 h-4 w-4" />Editar</Link>
+            </Button>
+          )}
+          {canDelete && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={busy}>
+                  <Trash2 className="mr-2 h-4 w-4" />Excluir
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. A solicitação {req.number}, seus comentários, anexos e histórico serão removidos.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={remove}>Excluir</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -192,15 +235,16 @@ function RequestDetail() {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
           <Field label="Setor" value={req.sectors?.name ?? "—"} />
           <Field label="Solicitante" value={req.profiles?.full_name ?? req.profiles?.email ?? "—"} />
-          <Field label="Criada em" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />
-          {req.decided_at && <Field label="Decidida em" value={format(new Date(req.decided_at), "dd/MM/yyyy HH:mm")} />}
-          {req.finalized_at && <Field label="Finalizada em" value={format(new Date(req.finalized_at), "dd/MM/yyyy HH:mm")} />}
+          <Field label="Data da solicitação" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />
+          <Field label="Data da aprovação" value={req.decided_at ? format(new Date(req.decided_at), "dd/MM/yyyy HH:mm") : "—"} />
+          <Field label="Data da compra" value={req.purchased_at ? format(new Date(req.purchased_at), "dd/MM/yyyy HH:mm") : "—"} />
+          <Field label="Data de chegada" value={req.arrived_at ? format(new Date(req.arrived_at), "dd/MM/yyyy HH:mm") : "—"} />
         </Card>
       </div>
 
-      {(canDecide || canFinalize) && (
+      {(canDecide || canFinalize || canPurchase) && (
         <Card className="p-6 space-y-4 border-primary/30">
-          <h3 className="text-sm font-semibold">Ações de aprovação</h3>
+          <h3 className="text-sm font-semibold">Ações</h3>
           {canDecide && (
             <>
               <Textarea placeholder="Nota (opcional)" value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} rows={2} />
@@ -214,7 +258,21 @@ function RequestDetail() {
               </div>
             </>
           )}
-          {canFinalize && (
+          {canPurchase && (
+            <div className="flex flex-wrap gap-2">
+              {!req.purchased_at && (
+                <Button onClick={markPurchased} disabled={busy} variant="outline">
+                  <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
+                </Button>
+              )}
+              {!req.arrived_at && (
+                <Button onClick={markArrived} disabled={busy} variant="outline">
+                  <Truck className="mr-2 h-4 w-4" />Registrar chegada do material
+                </Button>
+              )}
+            </div>
+          )}
+          {canFinalize && !canPurchase && (
             <Button onClick={finalize} disabled={busy} variant="outline">
               <PackageCheck className="mr-2 h-4 w-4" />Marcar como finalizada
             </Button>
