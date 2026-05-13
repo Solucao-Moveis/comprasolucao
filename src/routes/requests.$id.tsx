@@ -134,6 +134,8 @@ function RequestDetail() {
   };
 
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
+  const canEdit = canDelete;
+  const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && req.status === "aprovado" && !req.arrived_at;
 
   const remove = async () => {
     setBusy(true);
