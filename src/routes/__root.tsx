@@ -27,10 +27,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "SC Manager — Solicitações de Compra" },
+      { title: "Sistema de Compras Solução Móveis" },
       { name: "description", content: "Sistema de solicitação e aprovação de compras." },
-      { property: "og:title", content: "SC Manager — Solicitações de Compra" },
-      { name: "twitter:title", content: "SC Manager — Solicitações de Compra" },
+      { property: "og:title", content: "Sistema de Compras Solução Móveis" },
+      { name: "twitter:title", content: "Sistema de Compras Solução Móveis" },
       { property: "og:description", content: "Sistema de solicitação e aprovação de compras." },
       { name: "twitter:description", content: "Sistema de solicitação e aprovação de compras." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/86cdb9d7-f1d0-4e4a-81a8-24b56cc90089/id-preview-45d4b9fe--ba0dcd5b-fcf0-4cc7-ac51-56bef760c07f.lovable.app-1778069573379.png" },
