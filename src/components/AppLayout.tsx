@@ -71,7 +71,10 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <ShoppingCart className="h-5 w-5 text-primary" />
           <span className="font-semibold">SC Manager</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
+        <div className="flex items-center gap-1">
+          <NotificationsBell />
+          <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
+        </div>
       </header>
       <nav className="sticky top-[57px] z-10 flex gap-1 overflow-x-auto border-b bg-background px-2 py-2 md:hidden">
         {nav.map((n) => (
