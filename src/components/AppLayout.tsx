@@ -82,14 +82,14 @@ export function AppLayout({ children }: { children: ReactNode }) {
           </Link>
         ))}
       </nav>
-      <main
-        className="md:pl-60 min-h-screen bg-no-repeat bg-center bg-fixed"
-        style={{
-          backgroundImage: `url(${logo})`,
-          backgroundSize: "min(60vw, 640px)",
-          backgroundBlendMode: "multiply",
-        }}
-      >
+      <main className="md:pl-60 relative isolate">
+        <img
+          src={logo}
+          alt=""
+          aria-hidden
+          style={{ pointerEvents: "none" }}
+          className="fixed left-1/2 top-1/2 -z-10 -translate-x-1/2 -translate-y-1/2 w-[60vw] max-w-[640px] opacity-[0.12] select-none md:left-[calc(50%+120px)]"
+        />
         <div className="mx-auto max-w-7xl p-4 md:p-8">
           {children}
         </div>
