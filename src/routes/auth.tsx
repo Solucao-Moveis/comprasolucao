@@ -75,7 +75,16 @@ function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-accent/30 p-4">
+    <div
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{
+        backgroundColor: "#ffffff",
+        backgroundImage: `url(${logo}), url(${logo})`,
+        backgroundRepeat: "repeat, repeat",
+        backgroundSize: "160px 160px, 160px 160px",
+        backgroundPosition: "0 0, 80px 80px",
+      }}
+    >
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center gap-3 text-center">
           <img src={logo} alt="Solução Móveis" className="h-20 w-20 rounded-xl object-contain bg-white shadow-lg shadow-primary/10" />
