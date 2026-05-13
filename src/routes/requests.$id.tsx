@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -28,6 +30,7 @@ function RequestDetail() {
   const [comment, setComment] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [purchaseAmount, setPurchaseAmount] = useState("");
 
   const { data: req } = useQuery({
     queryKey: ["request", id],
@@ -100,13 +103,19 @@ function RequestDetail() {
   };
 
   const markPurchased = async () => {
+    const amount = parseFloat(purchaseAmount.replace(",", "."));
+    if (!purchaseAmount || isNaN(amount) || amount <= 0) {
+      return toast.error("Informe o valor da compra");
+    }
     setBusy(true);
     const { error } = await supabase.from("purchase_requests").update({
       purchased_at: new Date().toISOString(),
+      purchase_amount: amount,
     }).eq("id", id);
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Compra registrada");
+    setPurchaseAmount("");
     qc.invalidateQueries({ queryKey: ["request", id] });
   };
 
@@ -225,6 +234,7 @@ function RequestDetail() {
             <Field label="Quantidade" value={`${req.quantity} ${req.unit}`} />
             <Field label="Necessário em" value={format(new Date(req.needed_by), "dd/MM/yyyy")} />
             <Field label="Centro de custo" value={req.cost_centers ? `${req.cost_centers.code} — ${req.cost_centers.name}` : "—"} />
+            <Field label="Valor da compra" value={req.purchase_amount != null ? `R$ ${Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"} />
           </div>
           {req.decision_note && (
             <Section title="Nota da decisão"><p className="whitespace-pre-wrap text-sm">{req.decision_note}</p></Section>
@@ -259,11 +269,26 @@ function RequestDetail() {
             </>
           )}
           {canPurchase && (
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
               {!req.purchased_at && (
-                <Button onClick={markPurchased} disabled={busy} variant="outline">
-                  <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
-                </Button>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="purchase_amount">Valor da compra (R$) *</Label>
+                    <Input
+                      id="purchase_amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="0,00"
+                      value={purchaseAmount}
+                      onChange={(e) => setPurchaseAmount(e.target.value)}
+                      className="w-48"
+                    />
+                  </div>
+                  <Button onClick={markPurchased} disabled={busy} variant="outline">
+                    <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
+                  </Button>
+                </div>
               )}
               {!req.arrived_at && (
                 <Button onClick={markArrived} disabled={busy} variant="outline">

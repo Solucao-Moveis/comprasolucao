@@ -101,6 +101,7 @@ export type Database = {
           needed_by: string
           number: string | null
           priority: Database["public"]["Enums"]["request_priority"]
+          purchase_amount: number | null
           purchased_at: string | null
           quantity: number
           requester_id: string
@@ -123,6 +124,7 @@ export type Database = {
           needed_by: string
           number?: string | null
           priority?: Database["public"]["Enums"]["request_priority"]
+          purchase_amount?: number | null
           purchased_at?: string | null
           quantity: number
           requester_id: string
@@ -145,6 +147,7 @@ export type Database = {
           needed_by?: string
           number?: string | null
           priority?: Database["public"]["Enums"]["request_priority"]
+          purchase_amount?: number | null
           purchased_at?: string | null
           quantity?: number
           requester_id?: string

@@ -18,7 +18,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data: requests } = await supabase
         .from("purchase_requests")
-        .select("id,status,priority,created_at,decided_at,sector_id,sectors(name)");
+        .select("id,status,priority,created_at,decided_at,sector_id,purchase_amount,cost_center_id,sectors(name),cost_centers(code,name)");
       return requests ?? [];
     },
   });
@@ -51,6 +51,18 @@ function Dashboard() {
     .filter((r: any) => r.decided_at)
     .map((r: any) => (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
   const sla = decidedTimes.length ? (decidedTimes.reduce((a, b) => a + b, 0) / decidedTimes.length).toFixed(1) : "—";
+
+  const byCostCenter = Object.values(
+    list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
+      if (!r.purchase_amount) return acc;
+      const name = r.cost_centers ? `${r.cost_centers.code}` : "Sem CC";
+      acc[name] = acc[name] ?? { name, total: 0 };
+      acc[name].total += Number(r.purchase_amount);
+      return acc;
+    }, {})
+  );
+  const totalSpent = byCostCenter.reduce((sum, c: any) => sum + c.total, 0);
+  const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const stats = [
     { label: "Pendentes", value: counts.pendente, icon: Clock, tone: "warning" },
@@ -124,6 +136,28 @@ function Dashboard() {
           )}
         </Card>
       </div>
+
+      <Card className="p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Valor de compras por centro de custo</h3>
+          <div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-foreground">{fmtBRL(totalSpent)}</span></div>
+        </div>
+        {byCostCenter.length === 0 ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma compra registrada com valor ainda</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={byCostCenter}>
+              <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={11} />
+              <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+              <Tooltip
+                contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }}
+                formatter={(v: number) => fmtBRL(v)}
+              />
+              <Bar dataKey="total" fill="oklch(0.62 0.16 150)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Card>
     </div>
   );
 }
