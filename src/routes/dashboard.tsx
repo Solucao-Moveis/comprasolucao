@@ -52,6 +52,18 @@ function Dashboard() {
     .map((r: any) => (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
   const sla = decidedTimes.length ? (decidedTimes.reduce((a, b) => a + b, 0) / decidedTimes.length).toFixed(1) : "—";
 
+  const byCostCenter = Object.values(
+    list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
+      if (!r.purchase_amount) return acc;
+      const name = r.cost_centers ? `${r.cost_centers.code}` : "Sem CC";
+      acc[name] = acc[name] ?? { name, total: 0 };
+      acc[name].total += Number(r.purchase_amount);
+      return acc;
+    }, {})
+  );
+  const totalSpent = byCostCenter.reduce((sum, c: any) => sum + c.total, 0);
+  const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const stats = [
     { label: "Pendentes", value: counts.pendente, icon: Clock, tone: "warning" },
     { label: "Aprovadas", value: counts.aprovado, icon: CheckCircle2, tone: "success" },
