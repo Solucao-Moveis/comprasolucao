@@ -55,7 +55,7 @@ function Dashboard() {
   const byCostCenter = Object.values(
     list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       if (!r.purchase_amount) return acc;
-      const name = r.cost_centers ? `${r.cost_centers.code}` : "Sem CC";
+      const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
       acc[name] = acc[name] ?? { name, total: 0 };
       acc[name].total += Number(r.purchase_amount);
       return acc;
@@ -146,9 +146,9 @@ function Dashboard() {
           <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma compra registrada com valor ainda</p>
         ) : (
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={byCostCenter}>
-              <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={11} />
-              <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+            <BarChart data={byCostCenter} margin={{ top: 8, right: 16, left: 24, bottom: 40 }}>
+              <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={11} interval={0} angle={-20} textAnchor="end" height={60} />
+              <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} width={90} tickFormatter={(v) => v >= 1000 ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k` : `R$ ${v.toLocaleString("pt-BR")}`} />
               <Tooltip
                 contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }}
                 formatter={(v: number) => fmtBRL(v)}
