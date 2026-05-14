@@ -32,7 +32,7 @@ function RequestsList() {
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
-    queryFn: async () => (await supabase.from("sectors").select("id,name").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("sectors").select("id,code,name").order("code")).data ?? [],
   });
 
   const { data: requests } = useQuery({
@@ -40,7 +40,7 @@ function RequestsList() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchase_requests")
-        .select("*, sectors(name), items(code)")
+        .select("*, sectors(code,name), items(code)")
         .order("created_at", { ascending: false });
       if (!data) return [];
       const ids = Array.from(new Set(data.map((r) => r.requester_id)));
@@ -118,7 +118,7 @@ function RequestsList() {
             <SelectTrigger><SelectValue placeholder="Setor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos setores</SelectItem>
-              {sectors?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              {sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={priority} onValueChange={setPriority}>
@@ -162,7 +162,7 @@ function RequestsList() {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{r.description}</td>
-                  <td className="px-4 py-3">{r.sectors?.name}</td>
+                  <td className="px-4 py-3">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
                   <td className="px-4 py-3">{r.profiles?.full_name ?? r.profiles?.email}</td>
                   <td className="px-4 py-3"><PriorityBadge priority={r.priority} /></td>
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>

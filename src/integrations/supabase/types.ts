@@ -151,7 +151,7 @@ export type Database = {
           purchased_at: string | null
           quantity: number
           requester_id: string
-          sector_id: string
+          sector_id: string | null
           status: Database["public"]["Enums"]["request_status"]
           unit: string
           updated_at: string
@@ -175,7 +175,7 @@ export type Database = {
           purchased_at?: string | null
           quantity: number
           requester_id: string
-          sector_id: string
+          sector_id?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           unit: string
           updated_at?: string
@@ -199,7 +199,7 @@ export type Database = {
           purchased_at?: string | null
           quantity?: number
           requester_id?: string
-          sector_id?: string
+          sector_id?: string | null
           status?: Database["public"]["Enums"]["request_status"]
           unit?: string
           updated_at?: string
@@ -354,18 +354,21 @@ export type Database = {
       sectors: {
         Row: {
           approver_id: string | null
+          code: string | null
           created_at: string
           id: string
           name: string
         }
         Insert: {
           approver_id?: string | null
+          code?: string | null
           created_at?: string
           id?: string
           name: string
         }
         Update: {
           approver_id?: string | null
+          code?: string | null
           created_at?: string
           id?: string
           name?: string

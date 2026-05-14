@@ -43,7 +43,7 @@ function NewRequest() {
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
-    queryFn: async () => (await supabase.from("sectors").select("id,name").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("sectors").select("id,code,name").order("code")).data ?? [],
   });
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -137,7 +137,7 @@ function NewRequest() {
             <div className="space-y-2">
               <Label>Setor solicitante *</Label>
               <Select name="sector_id"><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{sectors?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">

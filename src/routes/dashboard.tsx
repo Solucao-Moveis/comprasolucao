@@ -19,7 +19,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data: requests } = await supabase
         .from("purchase_requests")
-        .select("id,status,priority,created_at,decided_at,sector_id,purchase_amount,cost_center_id,sectors(name),cost_centers(code,name)");
+        .select("id,status,priority,created_at,decided_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name)");
       return requests ?? [];
     },
   });
@@ -41,7 +41,7 @@ function Dashboard() {
 
   const bySector = Object.values(
     list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
-      const name = r.sectors?.name ?? "—";
+      const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
       acc[name] = acc[name] ?? { name, total: 0 };
       acc[name].total++;
       return acc;

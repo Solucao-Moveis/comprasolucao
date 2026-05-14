@@ -43,7 +43,7 @@ function EditRequest() {
   });
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
-    queryFn: async () => (await supabase.from("sectors").select("id,name").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("sectors").select("id,code,name").order("code")).data ?? [],
   });
   const { data: ccs } = useQuery({
     queryKey: ["cost_centers"],
@@ -100,7 +100,7 @@ function EditRequest() {
               <Label>Setor *</Label>
               <Select value={form.sector_id} onValueChange={(v) => set("sector_id", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{sectors?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
