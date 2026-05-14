@@ -34,8 +34,12 @@ const schema = z.object({
 function NewRequest() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
+  const [selectedItem, setSelectedItem] = useState<string>("");
+  const [itemDialog, setItemDialog] = useState(false);
+  const [newItemBusy, setNewItemBusy] = useState(false);
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -50,6 +54,28 @@ function NewRequest() {
     queryKey: ["cost_centers"],
     queryFn: async () => (await supabase.from("cost_centers").select("id,code,name").order("code")).data ?? [],
   });
+  const { data: items } = useQuery({
+    queryKey: ["items"],
+    queryFn: async () => (await supabase.from("items").select("id,code,description,supplier,avg_price").order("code")).data ?? [],
+  });
+  const itemSelected = items?.find((i: any) => i.id === selectedItem);
+
+  const createItemInline = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const code = String(fd.get("code") ?? "").trim();
+    const description = String(fd.get("description") ?? "").trim();
+    const supplier = String(fd.get("supplier") ?? "").trim();
+    if (!code || !description) { toast.error("Código e descrição são obrigatórios"); return; }
+    setNewItemBusy(true);
+    const { data, error } = await supabase.from("items").insert({ code, description, supplier: supplier || null }).select("id").single();
+    setNewItemBusy(false);
+    if (error || !data) { toast.error(error?.message ?? "Erro"); return; }
+    toast.success("Item cadastrado");
+    setItemDialog(false);
+    await qc.invalidateQueries({ queryKey: ["items"] });
+    setSelectedItem(data.id);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
