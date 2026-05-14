@@ -43,7 +43,7 @@ function NewRequest() {
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
-    queryFn: async () => (await supabase.from("sectors").select("id,name").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("sectors").select("id,code,name").order("code")).data ?? [],
   });
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
