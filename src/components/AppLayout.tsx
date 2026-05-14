@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Plus, LogOut, CheckSquare, Settings } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, LogOut, CheckSquare, Settings, Package } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import logo from "@/assets/logo.png";
@@ -24,6 +24,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/requests", icon: FileText, label: "Solicitações" },
     { to: "/approvals", icon: CheckSquare, label: "Aprovações" },
+    { to: "/items", icon: Package, label: "Itens" },
     { to: "/requests/new", icon: Plus, label: "Nova" },
     ...(isAdmin ? [{ to: "/admin", icon: Settings, label: "Administração" }] : []),
   ];
