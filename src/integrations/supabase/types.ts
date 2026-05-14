@@ -35,6 +35,51 @@ export type Database = {
         }
         Relationships: []
       }
+      items: {
+        Row: {
+          avg_interval_days: number | null
+          avg_price: number | null
+          code: string
+          created_at: string
+          description: string
+          id: string
+          last_purchased_at: string | null
+          purchase_count: number
+          supplier: string | null
+          total_quantity: number
+          total_spent: number
+          updated_at: string
+        }
+        Insert: {
+          avg_interval_days?: number | null
+          avg_price?: number | null
+          code: string
+          created_at?: string
+          description: string
+          id?: string
+          last_purchased_at?: string | null
+          purchase_count?: number
+          supplier?: string | null
+          total_quantity?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_interval_days?: number | null
+          avg_price?: number | null
+          code?: string
+          created_at?: string
+          description?: string
+          id?: string
+          last_purchased_at?: string | null
+          purchase_count?: number
+          supplier?: string | null
+          total_quantity?: number
+          total_spent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -97,6 +142,7 @@ export type Database = {
           description: string
           finalized_at: string | null
           id: string
+          item_id: string | null
           justification: string
           needed_by: string
           number: string | null
@@ -120,6 +166,7 @@ export type Database = {
           description: string
           finalized_at?: string | null
           id?: string
+          item_id?: string | null
           justification: string
           needed_by: string
           number?: string | null
@@ -143,6 +190,7 @@ export type Database = {
           description?: string
           finalized_at?: string | null
           id?: string
+          item_id?: string | null
           justification?: string
           needed_by?: string
           number?: string | null
@@ -162,6 +210,13 @@ export type Database = {
             columns: ["cost_center_id"]
             isOneToOne: false
             referencedRelation: "cost_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
           {

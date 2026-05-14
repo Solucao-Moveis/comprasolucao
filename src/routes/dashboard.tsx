@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
-import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/dashboard")({
   component: () => <AppLayout><Dashboard /></AppLayout>,
@@ -22,6 +23,13 @@ function Dashboard() {
       return requests ?? [];
     },
   });
+  const { data: items } = useQuery({
+    queryKey: ["items"],
+    queryFn: async () => (await supabase.from("items").select("id,code,description,avg_interval_days,last_purchased_at,avg_price")).data ?? [],
+  });
+  const now = Date.now();
+  const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
+    (now - new Date(i.last_purchased_at).getTime()) / 86400000 >= Number(i.avg_interval_days));
 
   const list = data ?? [];
   const counts = {
@@ -102,6 +110,29 @@ function Dashboard() {
         <div className="mt-1 text-3xl font-bold">{sla}{sla !== "—" && " h"}</div>
         <p className="text-xs text-muted-foreground">Tempo médio entre criação e decisão</p>
       </Card>
+
+      {dueItems.length > 0 && (
+        <Card className="p-5 border-warning/40 bg-warning/5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-warning" />
+              <h3 className="text-sm font-semibold">Sugestão de compra ({dueItems.length})</h3>
+            </div>
+            <Link to="/items" className="text-xs text-primary hover:underline">Ver catálogo</Link>
+          </div>
+          <ul className="space-y-1.5 text-sm">
+            {dueItems.map((i: any) => {
+              const days = Math.floor((now - new Date(i.last_purchased_at).getTime()) / 86400000);
+              return (
+                <li key={i.id} className="flex justify-between gap-3">
+                  <span className="truncate"><span className="font-mono text-xs">{i.code}</span> — {i.description}</span>
+                  <span className="text-muted-foreground text-xs whitespace-nowrap">{days}d desde a última (média {Number(i.avg_interval_days).toFixed(0)}d)</span>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
