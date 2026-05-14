@@ -91,7 +91,7 @@ function AdminPage() {
           {sectors?.map((s) => (
             <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3">
               <div>
-                <div className="font-medium">{s.name}</div>
+                <div className="font-medium">{(s as any).code} — {s.name}</div>
                 <div className="text-xs text-muted-foreground">Atual: {profileLabel(s.approver_id)}</div>
               </div>
               <Select
