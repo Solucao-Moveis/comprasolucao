@@ -150,10 +150,43 @@ function NewRequest() {
         </Card>
 
         <Card className="p-6 space-y-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Material / Serviço</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Material / Serviço</h3>
+            <Dialog open={itemDialog} onOpenChange={setItemDialog}>
+              <DialogTrigger asChild>
+                <Button type="button" variant="outline" size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
+                <form onSubmit={createItemInline} className="space-y-4">
+                  <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
+                  <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
+                  <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
+                  <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Item do catálogo</Label>
+            <input type="hidden" name="item_id" value={selectedItem} />
+            <Select value={selectedItem} onValueChange={setSelectedItem}>
+              <SelectTrigger><SelectValue placeholder="Selecione um item (opcional)" /></SelectTrigger>
+              <SelectContent>
+                {items?.map((i: any) => (
+                  <SelectItem key={i.id} value={i.id}>{i.code} — {i.description}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {itemSelected && Number(itemSelected.avg_price) > 0 && (
+              <p className="text-xs text-muted-foreground">Preço médio histórico: R$ {Number(itemSelected.avg_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} {itemSelected.supplier ? `· Fornecedor: ${itemSelected.supplier}` : ""}</p>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label>Descrição detalhada *</Label>
-            <Textarea name="description" rows={4} placeholder="Descreva o material ou serviço..." />
+            <Textarea name="description" rows={4} placeholder="Descreva o material ou serviço..." defaultValue={itemSelected?.description ?? ""} key={selectedItem} />
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2"><Label>Quantidade *</Label><Input name="quantity" type="number" step="0.01" min="0" /></div>
