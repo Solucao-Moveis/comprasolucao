@@ -98,6 +98,7 @@ function NewRequest() {
         justification: parsed.data.justification,
         priority: parsed.data.priority,
         cost_center_id: parsed.data.cost_center_id || null,
+        item_id: parsed.data.item_id || null,
       })
       .select("id,number")
       .single();
