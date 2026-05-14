@@ -100,7 +100,7 @@ function EditRequest() {
               <Label>Setor *</Label>
               <Select value={form.sector_id} onValueChange={(v) => set("sector_id", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{sectors?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
