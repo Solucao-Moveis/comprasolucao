@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -25,10 +26,22 @@ const schema = z.object({
 
 const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+type ItemRow = {
+  id: string;
+  code: string;
+  description: string;
+  supplier: string | null;
+  avg_price: number | null;
+  purchase_count: number;
+  avg_interval_days: number | null;
+  last_purchased_at: string | null;
+};
+
 function ItemsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<ItemRow | null>(null);
   const { data: items } = useQuery({
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("*").order("code")).data ?? [],
@@ -40,15 +53,31 @@ function ItemsPage() {
     const parsed = schema.safeParse(Object.fromEntries(fd.entries()));
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setBusy(true);
-    const { error } = await supabase.from("items").insert({
-      code: parsed.data.code, description: parsed.data.description, supplier: parsed.data.supplier || null,
-    });
+    const payload = {
+      code: parsed.data.code,
+      description: parsed.data.description,
+      supplier: parsed.data.supplier || null,
+    };
+    const { error } = editing
+      ? await supabase.from("items").update(payload).eq("id", editing.id)
+      : await supabase.from("items").insert(payload);
     setBusy(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Item cadastrado");
+    toast.success(editing ? "Item atualizado" : "Item cadastrado");
     setOpen(false);
+    setEditing(null);
     qc.invalidateQueries({ queryKey: ["items"] });
   };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("items").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Item excluído");
+    qc.invalidateQueries({ queryKey: ["items"] });
+  };
+
+  const openNew = () => { setEditing(null); setOpen(true); };
+  const openEdit = (item: ItemRow) => { setEditing(item); setOpen(true); };
 
   const now = Date.now();
   const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
@@ -61,14 +90,14 @@ function ItemsPage() {
           <h1 className="text-2xl font-bold">Catálogo de itens</h1>
           <p className="text-sm text-muted-foreground">Cadastro de itens, preço médio e periodicidade de compra</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus className="mr-2 h-4 w-4" /> Novo item</Button></DialogTrigger>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
+          <DialogTrigger asChild><Button onClick={openNew}><Plus className="mr-2 h-4 w-4" /> Novo item</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Cadastrar item</DialogTitle></DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
-              <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
-              <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
+            <DialogHeader><DialogTitle>{editing ? "Editar item" : "Cadastrar item"}</DialogTitle></DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4" key={editing?.id ?? "new"}>
+              <div className="space-y-2"><Label>Código *</Label><Input name="code" defaultValue={editing?.code ?? ""} /></div>
+              <div className="space-y-2"><Label>Descrição *</Label><Input name="description" defaultValue={editing?.description ?? ""} /></div>
+              <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" defaultValue={editing?.supplier ?? ""} /></div>
               <DialogFooter><Button type="submit" disabled={busy}>{busy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -101,6 +130,7 @@ function ItemsPage() {
               <TableHead className="text-right">Compras</TableHead>
               <TableHead className="text-right">Periodicidade</TableHead>
               <TableHead>Última compra</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -113,10 +143,32 @@ function ItemsPage() {
                 <TableCell className="text-right">{i.purchase_count}</TableCell>
                 <TableCell className="text-right">{i.avg_interval_days ? `${Number(i.avg_interval_days).toFixed(0)} d` : "—"}</TableCell>
                 <TableCell className="text-muted-foreground text-xs">{i.last_purchased_at ? new Date(i.last_purchased_at).toLocaleDateString("pt-BR") : "—"}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(i)} aria-label="Editar"><Pencil className="h-4 w-4" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label="Excluir"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. O item "{i.code} — {i.description}" será removido do catálogo.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(i.id)}>Excluir</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
             {(items ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">Nenhum item cadastrado</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">Nenhum item cadastrado</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
