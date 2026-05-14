@@ -40,7 +40,7 @@ function RequestsList() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchase_requests")
-        .select("*, sectors(name)")
+        .select("*, sectors(name), items(code)")
         .order("created_at", { ascending: false });
       if (!data) return [];
       const ids = Array.from(new Set(data.map((r) => r.requester_id)));
@@ -140,6 +140,7 @@ function RequestsList() {
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-3">Número</th>
+                <th className="px-4 py-3">Item</th>
                 <th className="px-4 py-3">Descrição</th>
                 <th className="px-4 py-3">Setor</th>
                 <th className="px-4 py-3">Solicitante</th>
@@ -150,7 +151,7 @@ function RequestsList() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
+                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
               )}
               {filtered.map((r: any) => {
                 const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
@@ -159,6 +160,7 @@ function RequestsList() {
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
                   </td>
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{r.description}</td>
                   <td className="px-4 py-3">{r.sectors?.name}</td>
                   <td className="px-4 py-3">{r.profiles?.full_name ?? r.profiles?.email}</td>
