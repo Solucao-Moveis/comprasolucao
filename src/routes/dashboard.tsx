@@ -133,6 +133,9 @@ function Dashboard() {
           </ul>
         </Card>
       )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold">Solicitações por setor</h3>
           {bySector.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">Sem dados ainda</p>
