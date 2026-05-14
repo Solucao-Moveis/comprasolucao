@@ -23,7 +23,7 @@ function Approvals() {
     queryFn: async () => {
       let q = supabase
         .from("purchase_requests")
-        .select("*, sectors!inner(name,approver_id), cost_centers(code,name)")
+        .select("*, sectors!inner(code,name,approver_id), cost_centers(code,name)")
         .eq("status", "pendente")
         .order("created_at", { ascending: false });
       if (!isAdmin) q = q.eq("sectors.approver_id", user!.id);
