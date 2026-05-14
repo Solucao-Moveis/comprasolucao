@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ItemsRouteImport } from './routes/items'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ApprovalsRouteImport } from './routes/approvals'
@@ -23,6 +24,11 @@ import { Route as RequestsIdEditRouteImport } from './routes/requests.$id.edit'
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ItemsRoute = ItemsRouteImport.update({
+  id: '/items',
+  path: '/items',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/auth'
     | '/dashboard'
+    | '/items'
     | '/reset-password'
     | '/requests/$id'
     | '/requests/new'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/auth'
     | '/dashboard'
+    | '/items'
     | '/reset-password'
     | '/requests/$id'
     | '/requests/new'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/auth'
     | '/dashboard'
+    | '/items'
     | '/reset-password'
     | '/requests/$id'
     | '/requests/new'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   ApprovalsRoute: typeof ApprovalsRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  ItemsRoute: typeof ItemsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RequestsIdRoute: typeof RequestsIdRouteWithChildren
   RequestsNewRoute: typeof RequestsNewRoute
@@ -166,6 +179,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/items': {
+      id: '/items'
+      path: '/items'
+      fullPath: '/items'
+      preLoaderRoute: typeof ItemsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -252,6 +272,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApprovalsRoute: ApprovalsRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  ItemsRoute: ItemsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RequestsIdRoute: RequestsIdRouteWithChildren,
   RequestsNewRoute: RequestsNewRoute,
