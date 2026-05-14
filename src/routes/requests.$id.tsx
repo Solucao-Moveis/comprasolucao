@@ -243,7 +243,7 @@ function RequestDetail() {
 
         <Card className="p-6 space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
-          <Field label="Setor" value={req.sectors?.name ?? "—"} />
+          <Field label="Setor" value={req.sectors ? `${req.sectors.code} — ${req.sectors.name}` : "—"} />
           <Field label="Solicitante" value={req.profiles?.full_name ?? req.profiles?.email ?? "—"} />
           <Field label="Data da solicitação" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />
           <Field label="Data da aprovação" value={req.decided_at ? format(new Date(req.decided_at), "dd/MM/yyyy HH:mm") : "—"} />
