@@ -24,7 +24,7 @@ function AdminPage() {
   const { data: sectors } = useQuery({
     enabled: isAdmin,
     queryKey: ["admin-sectors"],
-    queryFn: async () => (await supabase.from("sectors").select("*").order("name")).data ?? [],
+    queryFn: async () => (await supabase.from("sectors").select("*").order("code")).data ?? [],
   });
   const { data: profiles } = useQuery({
     enabled: isAdmin,
