@@ -70,6 +70,13 @@ function RequestDetail() {
     queryKey: ["att", id],
     queryFn: async () => (await supabase.from("request_attachments").select("*").eq("request_id", id)).data ?? [],
   });
+  const { data: reqItems } = useQuery({
+    queryKey: ["request_items", id],
+    queryFn: async () => {
+      const { data } = await supabase.from("request_items").select("*, items(code,description,supplier)").eq("request_id", id).order("position");
+      return data ?? [];
+    },
+  });
 
   if (!req) return <div className="text-muted-foreground">Carregando...</div>;
 
