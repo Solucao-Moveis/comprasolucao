@@ -41,7 +41,7 @@ function Dashboard() {
 
   const bySector = Object.values(
     list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
-      const name = r.sectors?.name ?? "—";
+      const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
       acc[name] = acc[name] ?? { name, total: 0 };
       acc[name].total++;
       return acc;
