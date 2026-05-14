@@ -66,7 +66,7 @@ function Approvals() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-mono">{r.number}</span>
                   <span>•</span>
-                  <span>{r.sectors?.name}</span>
+                  <span>{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</span>
                   <span>•</span>
                   <span>{format(new Date(r.created_at), "dd/MM/yyyy")}</span>
                 </div>
