@@ -336,6 +336,47 @@ export type Database = {
           },
         ]
       }
+      request_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          item_id: string | null
+          position: number
+          quantity: number
+          request_id: string
+          unit: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          item_id?: string | null
+          position?: number
+          quantity: number
+          request_id: string
+          unit: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          item_id?: string | null
+          position?: number
+          quantity?: number
+          request_id?: string
+          unit?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_items_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_sequences: {
         Row: {
           last_number: number

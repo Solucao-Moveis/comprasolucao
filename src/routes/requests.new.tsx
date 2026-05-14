@@ -13,23 +13,36 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Paperclip, X, Plus } from "lucide-react";
+import { Paperclip, X, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/requests/new")({
   component: () => <AppLayout><NewRequest /></AppLayout>,
 });
 
-const schema = z.object({
+type ItemRow = {
+  key: string;
+  item_id: string;
+  description: string;
+  quantity: string;
+  unit: string;
+};
+
+const headerSchema = z.object({
   sector_id: z.string().uuid("Selecione o setor"),
-  description: z.string().trim().min(5, "Descrição muito curta").max(2000),
-  quantity: z.coerce.number().positive("Quantidade deve ser positiva"),
-  unit: z.string().trim().min(1).max(20),
   needed_by: z.string().min(1, "Informe a data necessária"),
   justification: z.string().trim().min(5, "Justificativa muito curta").max(2000),
   priority: z.enum(["baixa", "media", "alta"]),
   cost_center_id: z.string().uuid().optional().or(z.literal("")),
+});
+
+const itemSchema = z.object({
+  description: z.string().trim().min(2, "Descrição obrigatória").max(2000),
+  quantity: z.coerce.number().positive("Quantidade deve ser positiva"),
+  unit: z.string().trim().min(1, "Unidade obrigatória").max(20),
   item_id: z.string().uuid().optional().or(z.literal("")),
 });
+
+const newRow = (): ItemRow => ({ key: crypto.randomUUID(), item_id: "", description: "", quantity: "", unit: "" });
 
 function NewRequest() {
   const { user } = useAuth();
@@ -37,8 +50,8 @@ function NewRequest() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [selectedItem, setSelectedItem] = useState<string>("");
-  const [itemDialog, setItemDialog] = useState(false);
+  const [rows, setRows] = useState<ItemRow[]>([newRow()]);
+  const [itemDialog, setItemDialog] = useState<string | null>(null);
   const [newItemBusy, setNewItemBusy] = useState(false);
 
   const { data: sectors } = useQuery({
@@ -58,23 +71,36 @@ function NewRequest() {
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("id,code,description,supplier,avg_price").order("code")).data ?? [],
   });
-  const itemSelected = items?.find((i: any) => i.id === selectedItem);
+
+  const updateRow = (key: string, patch: Partial<ItemRow>) =>
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const removeRow = (key: string) => setRows((rs) => (rs.length === 1 ? rs : rs.filter((r) => r.key !== key)));
+  const addRow = () => setRows((rs) => [...rs, newRow()]);
+
+  const onItemSelect = (key: string, itemId: string) => {
+    const it = items?.find((i: any) => i.id === itemId);
+    updateRow(key, {
+      item_id: itemId,
+      description: it ? it.description : "",
+    });
+  };
 
   const createItemInline = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!itemDialog) return;
     const fd = new FormData(e.currentTarget);
     const code = String(fd.get("code") ?? "").trim();
     const description = String(fd.get("description") ?? "").trim();
     const supplier = String(fd.get("supplier") ?? "").trim();
     if (!code || !description) { toast.error("Código e descrição são obrigatórios"); return; }
     setNewItemBusy(true);
-    const { data, error } = await supabase.from("items").insert({ code, description, supplier: supplier || null }).select("id").single();
+    const { data, error } = await supabase.from("items").insert({ code, description, supplier: supplier || null }).select("id,description").single();
     setNewItemBusy(false);
     if (error || !data) { toast.error(error?.message ?? "Erro"); return; }
     toast.success("Item cadastrado");
-    setItemDialog(false);
     await qc.invalidateQueries({ queryKey: ["items"] });
-    setSelectedItem(data.id);
+    updateRow(itemDialog, { item_id: data.id, description: data.description });
+    setItemDialog(null);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -82,28 +108,57 @@ function NewRequest() {
     if (!user) return;
     const fd = new FormData(e.currentTarget);
     const obj = Object.fromEntries(fd.entries());
-    const parsed = schema.safeParse(obj);
+    const parsed = headerSchema.safeParse(obj);
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
 
+    const validatedItems = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const p = itemSchema.safeParse({
+        description: r.description, quantity: r.quantity, unit: r.unit, item_id: r.item_id,
+      });
+      if (!p.success) { toast.error(`Item ${i + 1}: ${p.error.issues[0].message}`); return; }
+      validatedItems.push(p.data);
+    }
+    if (validatedItems.length === 0) { toast.error("Inclua pelo menos um item"); return; }
+
     setBusy(true);
+    const first = validatedItems[0];
+    const summaryDescription = validatedItems.length === 1
+      ? first.description
+      : validatedItems.map((it, idx) => `${idx + 1}. ${it.description} (${it.quantity} ${it.unit})`).join("\n");
+    const totalQty = validatedItems.reduce((s, it) => s + it.quantity, 0);
+
     const { data: inserted, error } = await supabase
       .from("purchase_requests")
       .insert({
         sector_id: parsed.data.sector_id,
         requester_id: user.id,
-        description: parsed.data.description,
-        quantity: parsed.data.quantity,
-        unit: parsed.data.unit,
+        description: summaryDescription,
+        quantity: totalQty,
+        unit: validatedItems.length === 1 ? first.unit : "diversos",
         needed_by: parsed.data.needed_by,
         justification: parsed.data.justification,
         priority: parsed.data.priority,
         cost_center_id: parsed.data.cost_center_id || null,
-        item_id: parsed.data.item_id || null,
+        item_id: validatedItems.length === 1 ? (first.item_id || null) : null,
       })
       .select("id,number")
       .single();
 
     if (error || !inserted) { setBusy(false); toast.error(error?.message ?? "Erro"); return; }
+
+    const { error: itemsErr } = await supabase.from("request_items").insert(
+      validatedItems.map((it, idx) => ({
+        request_id: inserted.id,
+        item_id: it.item_id || null,
+        description: it.description,
+        quantity: it.quantity,
+        unit: it.unit,
+        position: idx,
+      })),
+    );
+    if (itemsErr) { setBusy(false); toast.error(itemsErr.message); return; }
 
     for (const f of files) {
       const path = `${user.id}/${inserted.id}/${Date.now()}-${f.name}`;
@@ -120,10 +175,10 @@ function NewRequest() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
+    <div className="mx-auto max-w-4xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Nova solicitação</h1>
-        <p className="text-sm text-muted-foreground">Preencha os campos para abrir uma solicitação de compra</p>
+        <p className="text-sm text-muted-foreground">Preencha os campos para abrir uma solicitação de compra. Você pode incluir vários itens.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -149,48 +204,91 @@ function NewRequest() {
           </div>
         </Card>
 
-        <Card className="p-6 space-y-5">
+        <Card className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Material / Serviço</h3>
-            <Dialog open={itemDialog} onOpenChange={setItemDialog}>
-              <DialogTrigger asChild>
-                <Button type="button" variant="outline" size="sm"><Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
-                <form onSubmit={createItemInline} className="space-y-4">
-                  <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
-                  <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
-                  <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
-                  <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens da solicitação</h3>
+            <Button type="button" variant="outline" size="sm" onClick={addRow}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar item
+            </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label>Item do catálogo</Label>
-            <input type="hidden" name="item_id" value={selectedItem} />
-            <Select value={selectedItem} onValueChange={setSelectedItem}>
-              <SelectTrigger><SelectValue placeholder="Selecione um item (opcional)" /></SelectTrigger>
-              <SelectContent>
-                {items?.map((i: any) => (
-                  <SelectItem key={i.id} value={i.id}>{i.code} — {i.description}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {itemSelected && Number(itemSelected.avg_price) > 0 && (
-              <p className="text-xs text-muted-foreground">Preço médio histórico: R$ {Number(itemSelected.avg_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} {itemSelected.supplier ? `· Fornecedor: ${itemSelected.supplier}` : ""}</p>
-            )}
-          </div>
+          <div className="space-y-4">
+            {rows.map((r, idx) => {
+              const selected = items?.find((i: any) => i.id === r.item_id);
+              return (
+                <div key={r.key} className="rounded-lg border p-4 space-y-3 bg-muted/20">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Item {idx + 1}</span>
+                    <div className="flex gap-2">
+                      <Dialog open={itemDialog === r.key} onOpenChange={(o) => setItemDialog(o ? r.key : null)}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="ghost" size="sm">
+                            <Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
+                          <form onSubmit={createItemInline} className="space-y-4">
+                            <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
+                            <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
+                            <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
+                            <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
+                          </form>
+                        </DialogContent>
+                      </Dialog>
+                      {rows.length > 1 && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(r.key)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
 
-          <div className="space-y-2">
-            <Label>Descrição detalhada *</Label>
-            <Textarea name="description" rows={4} placeholder="Descreva o material ou serviço..." defaultValue={itemSelected?.description ?? ""} key={selectedItem} />
+                  <div className="space-y-2">
+                    <Label>Item do catálogo</Label>
+                    <Select value={r.item_id} onValueChange={(v) => onItemSelect(r.key, v)}>
+                      <SelectTrigger><SelectValue placeholder="Selecione um item (opcional)" /></SelectTrigger>
+                      <SelectContent>
+                        {items?.map((i: any) => (
+                          <SelectItem key={i.id} value={i.id}>{i.code} — {i.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selected && Number(selected.avg_price) > 0 && (
+                      <p className="text-xs text-muted-foreground">Preço médio: R$ {Number(selected.avg_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} {selected.supplier ? `· ${selected.supplier}` : ""}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Descrição *</Label>
+                    <Textarea
+                      rows={2}
+                      placeholder="Descreva o material ou serviço..."
+                      value={r.description}
+                      onChange={(e) => updateRow(r.key, { description: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Quantidade *</Label>
+                      <Input type="number" step="0.01" min="0" value={r.quantity} onChange={(e) => updateRow(r.key, { quantity: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Unidade *</Label>
+                      <Input placeholder="un, kg, h..." value={r.unit} onChange={(e) => updateRow(r.key, { unit: e.target.value })} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2"><Label>Quantidade *</Label><Input name="quantity" type="number" step="0.01" min="0" /></div>
-            <div className="space-y-2"><Label>Unidade *</Label><Input name="unit" placeholder="un, kg, h..." /></div>
+        </Card>
+
+        <Card className="p-6 space-y-5">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2"><Label>Data necessária *</Label><Input name="needed_by" type="date" /></div>
             <div className="space-y-2"><Label>Prioridade *</Label>
               <Select name="priority" defaultValue="media"><SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -200,9 +298,6 @@ function NewRequest() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label>Data necessária *</Label><Input name="needed_by" type="date" /></div>
           </div>
           <div className="space-y-2">
             <Label>Justificativa *</Label>
