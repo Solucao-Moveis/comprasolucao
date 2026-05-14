@@ -162,7 +162,7 @@ function RequestsList() {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{r.description}</td>
-                  <td className="px-4 py-3">{r.sectors?.name}</td>
+                  <td className="px-4 py-3">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
                   <td className="px-4 py-3">{r.profiles?.full_name ?? r.profiles?.email}</td>
                   <td className="px-4 py-3"><PriorityBadge priority={r.priority} /></td>
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
