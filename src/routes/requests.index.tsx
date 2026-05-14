@@ -118,7 +118,7 @@ function RequestsList() {
             <SelectTrigger><SelectValue placeholder="Setor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos setores</SelectItem>
-              {sectors?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              {sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={priority} onValueChange={setPriority}>
