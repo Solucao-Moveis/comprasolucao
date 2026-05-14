@@ -137,7 +137,7 @@ function NewRequest() {
             <div className="space-y-2">
               <Label>Setor solicitante *</Label>
               <Select name="sector_id"><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>{sectors?.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                <SelectContent>{sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
