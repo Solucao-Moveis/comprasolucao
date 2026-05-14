@@ -40,7 +40,7 @@ function RequestsList() {
     queryFn: async () => {
       const { data } = await supabase
         .from("purchase_requests")
-        .select("*, sectors(name), items(code)")
+        .select("*, sectors(code,name), items(code)")
         .order("created_at", { ascending: false });
       if (!data) return [];
       const ids = Array.from(new Set(data.map((r) => r.requester_id)));
