@@ -235,10 +235,43 @@ function RequestDetail() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-2 space-y-5">
-          <Section title="Descrição"><p className="whitespace-pre-wrap text-sm">{req.description}</p></Section>
+          {reqItems && reqItems.length > 0 ? (
+            <Section title={`Itens (${reqItems.length})`}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr className="border-b">
+                      <th className="py-2 text-left font-medium">#</th>
+                      <th className="py-2 text-left font-medium">Código</th>
+                      <th className="py-2 text-left font-medium">Descrição</th>
+                      <th className="py-2 text-right font-medium">Qtd</th>
+                      <th className="py-2 text-left font-medium">Un</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reqItems.map((it: any, idx: number) => (
+                      <tr key={it.id} className="border-b last:border-0">
+                        <td className="py-2 text-muted-foreground">{idx + 1}</td>
+                        <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
+                        <td className="py-2">{it.description}</td>
+                        <td className="py-2 text-right">{Number(it.quantity).toLocaleString("pt-BR")}</td>
+                        <td className="py-2">{it.unit}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+          ) : (
+            <>
+              <Section title="Descrição"><p className="whitespace-pre-wrap text-sm">{req.description}</p></Section>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Field label="Quantidade" value={`${req.quantity} ${req.unit}`} />
+              </div>
+            </>
+          )}
           <Section title="Justificativa"><p className="whitespace-pre-wrap text-sm">{req.justification}</p></Section>
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Quantidade" value={`${req.quantity} ${req.unit}`} />
             <Field label="Necessário em" value={format(new Date(req.needed_by), "dd/MM/yyyy")} />
             <Field label="Centro de custo" value={req.cost_centers ? `${req.cost_centers.code} — ${req.cost_centers.name}` : "—"} />
             <Field label="Valor da compra" value={req.purchase_amount != null ? `R$ ${Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"} />
