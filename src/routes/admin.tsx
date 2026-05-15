@@ -17,7 +17,7 @@ export const Route = createFileRoute("/admin")({
 const ROLES = ["solicitante", "aprovador", "comprador", "admin"] as const;
 
 function AdminPage() {
-  const { roles, loading } = useAuth();
+  const { roles, loading, rolesLoading } = useAuth();
   const qc = useQueryClient();
   const isAdmin = roles.includes("admin");
 
@@ -37,7 +37,7 @@ function AdminPage() {
     queryFn: async () => (await supabase.from("user_roles").select("user_id,role")).data ?? [],
   });
 
-  if (loading) return <div className="text-muted-foreground">Carregando...</div>;
+  if (loading || rolesLoading) return <div className="text-muted-foreground">Carregando...</div>;
   if (!isAdmin) return <Navigate to="/dashboard" />;
 
   const setApprover = async (sectorId: string, approverId: string | null) => {
