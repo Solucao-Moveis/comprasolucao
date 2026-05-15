@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck } from "lucide-react";
 import { format } from "date-fns";
 
-export const Route = createFileRoute("/requests/$id")({
+export const Route = createFileRoute("/requests/$id/")({
   component: () => <AppLayout><RequestDetail /></AppLayout>,
 });
 
