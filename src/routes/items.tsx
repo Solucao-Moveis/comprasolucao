@@ -81,6 +81,15 @@ function ItemsPage() {
   const openEdit = (item: ItemRow) => { setEditing(item); setOpen(true); };
 
   const now = Date.now();
+  const q = search.trim().toLowerCase();
+  const filteredItems = (items ?? []).filter((i: any) => {
+    if (!q) return true;
+    return (
+      (i.code ?? "").toLowerCase().includes(q) ||
+      (i.description ?? "").toLowerCase().includes(q) ||
+      (i.supplier ?? "").toLowerCase().includes(q)
+    );
+  });
   const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
     (now - new Date(i.last_purchased_at).getTime()) / 86400000 >= Number(i.avg_interval_days));
 
