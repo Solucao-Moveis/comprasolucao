@@ -181,10 +181,13 @@ function RequestDetail() {
   };
 
   const downloadAtt = async (path: string, filename: string) => {
-    const { data, error } = await supabase.storage.from("request-attachments").createSignedUrl(path, 60);
+    const { data, error } = await supabase.storage.from("request-attachments").download(path);
     if (error || !data) return toast.error("Erro ao baixar");
+    const url = URL.createObjectURL(data);
     const a = document.createElement("a");
-    a.href = data.signedUrl; a.download = filename; a.target = "_blank"; a.click();
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
