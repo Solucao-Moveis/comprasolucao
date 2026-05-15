@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -15,7 +14,7 @@ import { z } from "zod";
 import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/requests/$id/edit")({
-  component: () => <AppLayout><EditRequest /></AppLayout>,
+  component: EditRequest,
 });
 
 const schema = z.object({
