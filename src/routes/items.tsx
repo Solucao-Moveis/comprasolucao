@@ -154,7 +154,7 @@ function ItemsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(items ?? []).map((i: any) => (
+            {filteredItems.map((i: any) => (
               <TableRow key={i.id}>
                 <TableCell className="font-mono text-xs">{i.code}</TableCell>
                 <TableCell>{i.description}</TableCell>
