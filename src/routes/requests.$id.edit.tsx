@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -27,6 +26,8 @@ const schema = z.object({
   priority: z.enum(["baixa", "media", "alta"]),
   cost_center_id: z.string().uuid().optional().or(z.literal("")),
 });
+
+const selectClassName = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 function EditRequest() {
   const { id } = Route.useParams();
@@ -97,20 +98,17 @@ function EditRequest() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label>Setor *</Label>
-              <Select value={form.sector_id} onValueChange={(v) => set("sector_id", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}</SelectContent>
-              </Select>
+              <select className={selectClassName} value={form.sector_id} onChange={(e) => set("sector_id", e.target.value)}>
+                <option value="" disabled>Selecione</option>
+                {sectors?.map((s: any) => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+              </select>
             </div>
             <div className="space-y-2">
               <Label>Centro de custo</Label>
-              <Select value={form.cost_center_id || "none"} onValueChange={(v) => set("cost_center_id", v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">—</SelectItem>
-                  {ccs?.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <select className={selectClassName} value={form.cost_center_id || ""} onChange={(e) => set("cost_center_id", e.target.value)}>
+                <option value="">—</option>
+                {ccs?.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+              </select>
             </div>
           </div>
           <div className="space-y-2">
@@ -122,14 +120,11 @@ function EditRequest() {
             <div className="space-y-2"><Label>Unidade *</Label><Input value={form.unit} onChange={(e) => set("unit", e.target.value)} /></div>
             <div className="space-y-2">
               <Label>Prioridade *</Label>
-              <Select value={form.priority} onValueChange={(v) => set("priority", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="baixa">Baixa</SelectItem>
-                  <SelectItem value="media">Média</SelectItem>
-                  <SelectItem value="alta">Alta</SelectItem>
-                </SelectContent>
-              </Select>
+              <select className={selectClassName} value={form.priority} onChange={(e) => set("priority", e.target.value)}>
+                <option value="baixa">Baixa</option>
+                <option value="media">Média</option>
+                <option value="alta">Alta</option>
+              </select>
             </div>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
