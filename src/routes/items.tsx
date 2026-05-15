@@ -42,6 +42,7 @@ function ItemsPage() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<ItemRow | null>(null);
+  const [search, setSearch] = useState("");
   const { data: items } = useQuery({
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("*").order("code")).data ?? [],
@@ -80,6 +81,15 @@ function ItemsPage() {
   const openEdit = (item: ItemRow) => { setEditing(item); setOpen(true); };
 
   const now = Date.now();
+  const q = search.trim().toLowerCase();
+  const filteredItems = (items ?? []).filter((i: any) => {
+    if (!q) return true;
+    return (
+      (i.code ?? "").toLowerCase().includes(q) ||
+      (i.description ?? "").toLowerCase().includes(q) ||
+      (i.supplier ?? "").toLowerCase().includes(q)
+    );
+  });
   const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
     (now - new Date(i.last_purchased_at).getTime()) / 86400000 >= Number(i.avg_interval_days));
 
@@ -121,6 +131,16 @@ function ItemsPage() {
         </Card>
       )}
 
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Pesquisar por código, descrição ou fornecedor..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-md"
+        />
+        <span className="text-xs text-muted-foreground">{filteredItems.length} de {(items ?? []).length}</span>
+      </div>
+
       <Card className="p-0 overflow-hidden">
         <Table>
           <TableHeader>
@@ -134,7 +154,7 @@ function ItemsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(items ?? []).map((i: any) => (
+            {filteredItems.map((i: any) => (
               <TableRow key={i.id}>
                 <TableCell className="font-mono text-xs">{i.code}</TableCell>
                 <TableCell>{i.description}</TableCell>
@@ -167,8 +187,8 @@ function ItemsPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {(items ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">Nenhum item cadastrado</TableCell></TableRow>
+            {filteredItems.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">{(items ?? []).length === 0 ? "Nenhum item cadastrado" : "Nenhum item encontrado"}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
