@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
-import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle, PiggyBank } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/dashboard")({
   component: () => <AppLayout><Dashboard /></AppLayout>,
@@ -14,6 +15,8 @@ export const Route = createFileRoute("/dashboard")({
 const COLORS = ["oklch(0.78 0.15 75)", "oklch(0.62 0.16 150)", "oklch(0.6 0.22 25)", "oklch(0.65 0.13 230)"];
 
 function Dashboard() {
+  const { roles } = useAuth();
+  const isBuyer = roles.includes("comprador") || roles.includes("admin");
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -27,6 +30,52 @@ function Dashboard() {
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("id,code,description,avg_interval_days,last_purchased_at,avg_price")).data ?? [],
   });
+  const { data: purchases } = useQuery({
+    enabled: isBuyer,
+    queryKey: ["buyer-savings"],
+    queryFn: async () => (await supabase
+      .from("purchase_requests")
+      .select("item_id,quantity,purchase_amount,purchased_at")
+      .not("item_id", "is", null)
+      .not("purchased_at", "is", null)
+      .not("purchase_amount", "is", null)
+      .order("purchased_at", { ascending: true })).data ?? [],
+  });
+
+  // Compute savings per month: for each item, savings = max(0, prevUnit - curUnit) * curQty
+  const savingsByMonth = new Map<string, number>();
+  const byItem = new Map<string, any[]>();
+  (purchases ?? []).forEach((p: any) => {
+    if (!byItem.has(p.item_id)) byItem.set(p.item_id, []);
+    byItem.get(p.item_id)!.push(p);
+  });
+  byItem.forEach((arr) => {
+    for (let i = 1; i < arr.length; i++) {
+      const prev = arr[i - 1], cur = arr[i];
+      const prevQty = Number(prev.quantity) || 0;
+      const curQty = Number(cur.quantity) || 0;
+      if (prevQty <= 0 || curQty <= 0) continue;
+      const prevUnit = Number(prev.purchase_amount) / prevQty;
+      const curUnit = Number(cur.purchase_amount) / curQty;
+      const diff = prevUnit - curUnit;
+      if (diff > 0) {
+        const d = new Date(cur.purchased_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        savingsByMonth.set(key, (savingsByMonth.get(key) || 0) + diff * curQty);
+      }
+    }
+  });
+  const monthKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
+  const currentMonthSave = savingsByMonth.get(monthKey) || 0;
+  const totalSave = Array.from(savingsByMonth.values()).reduce((a, b) => a + b, 0);
+  const savingsSeries = Array.from(savingsByMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([k, v]) => {
+      const [y, m] = k.split("-");
+      return { name: `${m}/${y.slice(2)}`, total: Number(v.toFixed(2)) };
+    });
+
   const now = Date.now();
   const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
     (now - new Date(i.last_purchased_at).getTime()) / 86400000 >= Number(i.avg_interval_days));
@@ -101,6 +150,34 @@ function Dashboard() {
           </Card>
         ))}
       </div>
+
+      {isBuyer && (
+        <Card className="p-5 border-success/40 bg-success/5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <PiggyBank className="h-4 w-4 text-success" />
+                SAVE — Economia em negociação (mês atual)
+              </div>
+              <div className="mt-1 text-3xl font-bold text-success">{fmtBRL(currentMonthSave)}</div>
+              <p className="text-xs text-muted-foreground">
+                Soma das diferenças quando o preço negociado ficou abaixo do último valor registrado para o mesmo item. Acumulado: <span className="font-semibold text-foreground">{fmtBRL(totalSave)}</span>
+              </p>
+            </div>
+            {savingsSeries.length > 0 && (
+              <div className="w-full sm:w-[320px] h-[100px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={savingsSeries}>
+                    <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={10} />
+                    <Tooltip formatter={(v: number) => fmtBRL(v)} contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }} />
+                    <Bar dataKey="total" fill="oklch(0.62 0.16 150)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-5">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
