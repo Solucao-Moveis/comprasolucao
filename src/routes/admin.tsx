@@ -17,7 +17,7 @@ export const Route = createFileRoute("/admin")({
 const ROLES = ["solicitante", "aprovador", "comprador", "admin"] as const;
 
 function AdminPage() {
-  const { roles, loading } = useAuth();
+  const { roles, loading, rolesLoading } = useAuth();
   const qc = useQueryClient();
   const isAdmin = roles.includes("admin");
 
