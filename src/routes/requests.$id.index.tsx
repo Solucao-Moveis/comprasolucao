@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -19,7 +18,7 @@ import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2,
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id/")({
-  component: () => <AppLayout><RequestDetail /></AppLayout>,
+  component: RequestDetail,
 });
 
 function RequestDetail() {
