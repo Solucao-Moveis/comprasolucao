@@ -187,8 +187,8 @@ function ItemsPage() {
                 </TableCell>
               </TableRow>
             ))}
-            {(items ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">Nenhum item cadastrado</TableCell></TableRow>
+            {filteredItems.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground text-sm">{(items ?? []).length === 0 ? "Nenhum item cadastrado" : "Nenhum item encontrado"}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
