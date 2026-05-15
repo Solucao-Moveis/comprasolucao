@@ -15,6 +15,8 @@ export const Route = createFileRoute("/dashboard")({
 const COLORS = ["oklch(0.78 0.15 75)", "oklch(0.62 0.16 150)", "oklch(0.6 0.22 25)", "oklch(0.65 0.13 230)"];
 
 function Dashboard() {
+  const { roles } = useAuth();
+  const isBuyer = roles.includes("comprador") || roles.includes("admin");
   const { data } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -28,6 +30,52 @@ function Dashboard() {
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("id,code,description,avg_interval_days,last_purchased_at,avg_price")).data ?? [],
   });
+  const { data: purchases } = useQuery({
+    enabled: isBuyer,
+    queryKey: ["buyer-savings"],
+    queryFn: async () => (await supabase
+      .from("purchase_requests")
+      .select("item_id,quantity,purchase_amount,purchased_at")
+      .not("item_id", "is", null)
+      .not("purchased_at", "is", null)
+      .not("purchase_amount", "is", null)
+      .order("purchased_at", { ascending: true })).data ?? [],
+  });
+
+  // Compute savings per month: for each item, savings = max(0, prevUnit - curUnit) * curQty
+  const savingsByMonth = new Map<string, number>();
+  const byItem = new Map<string, any[]>();
+  (purchases ?? []).forEach((p: any) => {
+    if (!byItem.has(p.item_id)) byItem.set(p.item_id, []);
+    byItem.get(p.item_id)!.push(p);
+  });
+  byItem.forEach((arr) => {
+    for (let i = 1; i < arr.length; i++) {
+      const prev = arr[i - 1], cur = arr[i];
+      const prevQty = Number(prev.quantity) || 0;
+      const curQty = Number(cur.quantity) || 0;
+      if (prevQty <= 0 || curQty <= 0) continue;
+      const prevUnit = Number(prev.purchase_amount) / prevQty;
+      const curUnit = Number(cur.purchase_amount) / curQty;
+      const diff = prevUnit - curUnit;
+      if (diff > 0) {
+        const d = new Date(cur.purchased_at);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        savingsByMonth.set(key, (savingsByMonth.get(key) || 0) + diff * curQty);
+      }
+    }
+  });
+  const monthKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; })();
+  const currentMonthSave = savingsByMonth.get(monthKey) || 0;
+  const totalSave = Array.from(savingsByMonth.values()).reduce((a, b) => a + b, 0);
+  const savingsSeries = Array.from(savingsByMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([k, v]) => {
+      const [y, m] = k.split("-");
+      return { name: `${m}/${y.slice(2)}`, total: Number(v.toFixed(2)) };
+    });
+
   const now = Date.now();
   const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
     (now - new Date(i.last_purchased_at).getTime()) / 86400000 >= Number(i.avg_interval_days));
