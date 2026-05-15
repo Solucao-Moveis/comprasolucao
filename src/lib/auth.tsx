@@ -8,6 +8,7 @@ interface AuthCtx {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  rolesLoading: boolean;
   roles: Role[];
   signOut: () => Promise<void>;
   refreshRoles: () => Promise<void>;
