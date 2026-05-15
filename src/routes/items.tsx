@@ -131,6 +131,16 @@ function ItemsPage() {
         </Card>
       )}
 
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Pesquisar por código, descrição ou fornecedor..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-md"
+        />
+        <span className="text-xs text-muted-foreground">{filteredItems.length} de {(items ?? []).length}</span>
+      </div>
+
       <Card className="p-0 overflow-hidden">
         <Table>
           <TableHeader>
