@@ -72,9 +72,9 @@ const RequestsIdIndexRoute = RequestsIdIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsIdEditRoute = RequestsIdEditRouteImport.update({
-  id: '/edit',
-  path: '/edit',
-  getParentRoute: () => RequestsIdRoute,
+  id: '/requests/$id/edit',
+  path: '/requests/$id/edit',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -169,6 +169,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   RequestsNewRoute: typeof RequestsNewRoute
   RequestsIndexRoute: typeof RequestsIndexRoute
+  RequestsIdEditRoute: typeof RequestsIdEditRoute
   RequestsIdIndexRoute: typeof RequestsIdIndexRoute
 }
 
@@ -246,10 +247,10 @@ declare module '@tanstack/react-router' {
     }
     '/requests/$id/edit': {
       id: '/requests/$id/edit'
-      path: '/edit'
+      path: '/requests/$id/edit'
       fullPath: '/requests/$id/edit'
       preLoaderRoute: typeof RequestsIdEditRouteImport
-      parentRoute: typeof RequestsIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
@@ -264,17 +265,9 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   RequestsNewRoute: RequestsNewRoute,
   RequestsIndexRoute: RequestsIndexRoute,
+  RequestsIdEditRoute: RequestsIdEditRoute,
   RequestsIdIndexRoute: RequestsIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
