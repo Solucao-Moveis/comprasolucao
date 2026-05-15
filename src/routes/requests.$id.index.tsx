@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck } from "lucide-react";
 import { format } from "date-fns";
 
-export const Route = createFileRoute("/requests/$id")({
+export const Route = createFileRoute("/requests/$id/")({
   component: () => <AppLayout><RequestDetail /></AppLayout>,
 });
 
@@ -272,7 +272,7 @@ function RequestDetail() {
           )}
           <Section title="Justificativa"><p className="whitespace-pre-wrap text-sm">{req.justification}</p></Section>
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Necessário em" value={format(new Date(req.needed_by), "dd/MM/yyyy")} />
+            <Field label="Necessário em" value={(() => { const [y,m,d] = String(req.needed_by).split("-").map(Number); return format(new Date(y, m-1, d), "dd/MM/yyyy"); })()} />
             <Field label="Centro de custo" value={req.cost_centers ? `${req.cost_centers.code} — ${req.cost_centers.name}` : "—"} />
             <Field label="Valor da compra" value={req.purchase_amount != null ? `R$ ${Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"} />
           </div>
