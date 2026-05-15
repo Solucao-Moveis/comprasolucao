@@ -42,6 +42,7 @@ function ItemsPage() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<ItemRow | null>(null);
+  const [search, setSearch] = useState("");
   const { data: items } = useQuery({
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("*").order("code")).data ?? [],
