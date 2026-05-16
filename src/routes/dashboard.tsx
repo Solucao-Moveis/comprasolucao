@@ -35,10 +35,11 @@ function Dashboard() {
     queryKey: ["buyer-savings"],
     queryFn: async () => (await supabase
       .from("purchase_requests")
-      .select("item_id,quantity,purchase_amount,purchased_at")
+      .select("item_id,quantity,purchase_amount,purchased_at,items!inner(code)")
       .not("item_id", "is", null)
       .not("purchased_at", "is", null)
       .not("purchase_amount", "is", null)
+      .neq("items.code", "3091000")
       .order("purchased_at", { ascending: true })).data ?? [],
   });
 
