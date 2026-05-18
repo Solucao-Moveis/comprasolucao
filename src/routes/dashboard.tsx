@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
+import { LabelList } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -218,12 +219,22 @@ function Dashboard() {
           {bySector.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">Sem dados ainda</p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={bySector}>
-                <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={11} />
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={bySector} margin={{ top: 20, right: 16, left: 0, bottom: 70 }}>
+                <XAxis
+                  dataKey="name"
+                  stroke="oklch(0.5 0.03 255)"
+                  fontSize={11}
+                  interval={0}
+                  angle={-25}
+                  textAnchor="end"
+                  height={70}
+                />
                 <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} allowDecimals={false} />
                 <Tooltip contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }} />
-                <Bar dataKey="total" fill="oklch(0.52 0.18 255)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="total" fill="oklch(0.52 0.18 255)" radius={[6, 6, 0, 0]}>
+                  <LabelList dataKey="total" position="top" fontSize={11} fill="oklch(0.3 0.03 255)" />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
