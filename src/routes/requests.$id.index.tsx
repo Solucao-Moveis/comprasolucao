@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id/")({
