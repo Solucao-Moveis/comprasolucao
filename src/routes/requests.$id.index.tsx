@@ -117,6 +117,7 @@ function RequestDetail() {
     const { error } = await supabase.from("purchase_requests").update({
       purchased_at: new Date().toISOString(),
       purchase_amount: amount,
+      status: "comprado",
     }).eq("id", id);
     setBusy(false);
     if (error) return toast.error(error.message);
