@@ -87,6 +87,7 @@ function Dashboard() {
     pendente: list.filter((r) => r.status === "pendente").length,
     aprovado: list.filter((r) => r.status === "aprovado").length,
     negado: list.filter((r) => r.status === "negado").length,
+    comprado: list.filter((r) => r.status === "comprado").length,
     finalizado: list.filter((r) => r.status === "finalizado").length,
   };
 
@@ -103,6 +104,7 @@ function Dashboard() {
     { name: "Pendente", value: counts.pendente },
     { name: "Aprovado", value: counts.aprovado },
     { name: "Negado", value: counts.negado },
+    { name: "Comprado", value: counts.comprado },
     { name: "Finalizado", value: counts.finalizado },
   ];
 
