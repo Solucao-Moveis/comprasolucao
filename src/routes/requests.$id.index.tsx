@@ -152,6 +152,21 @@ function RequestDetail() {
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado") && !req.arrived_at;
+  const canCancel = (req.requester_id === user?.id || roles.includes("admin")) &&
+    (req.status === "pendente" || req.status === "aprovado" || req.status === "comprado");
+
+  const cancelRequest = async () => {
+    setBusy(true);
+    const { error } = await supabase.from("purchase_requests").update({
+      status: "cancelado",
+    }).eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Solicitação cancelada");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+    qc.invalidateQueries({ queryKey: ["requests"] });
+  };
 
   const remove = async () => {
     setBusy(true);
