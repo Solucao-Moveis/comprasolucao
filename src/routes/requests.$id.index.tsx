@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id/")({
@@ -152,6 +152,21 @@ function RequestDetail() {
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado") && !req.arrived_at;
+  const canCancel = (req.requester_id === user?.id || roles.includes("admin")) &&
+    (req.status === "pendente" || req.status === "aprovado" || req.status === "comprado");
+
+  const cancelRequest = async () => {
+    setBusy(true);
+    const { error } = await supabase.from("purchase_requests").update({
+      status: "cancelado",
+    }).eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Solicitação cancelada");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+    qc.invalidateQueries({ queryKey: ["requests"] });
+  };
 
   const remove = async () => {
     setBusy(true);
@@ -198,6 +213,27 @@ function RequestDetail() {
             <Button variant="outline" size="sm" asChild>
               <Link to="/requests/$id/edit" params={{ id }}><Pencil className="mr-2 h-4 w-4" />Editar</Link>
             </Button>
+          )}
+          {canCancel && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={busy}>
+                  <Ban className="mr-2 h-4 w-4" />Cancelar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar solicitação?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A solicitação {req.number} será marcada como cancelada. Você pode reabri-la editando o status posteriormente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction onClick={cancelRequest}>Confirmar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
           {canDelete && (
             <AlertDialog>
