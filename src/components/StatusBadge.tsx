@@ -4,10 +4,11 @@ const map = {
   pendente: "bg-warning/15 text-warning border-warning/30",
   aprovado: "bg-success/15 text-success border-success/30",
   negado: "bg-destructive/15 text-destructive border-destructive/30",
+  comprado: "bg-primary/15 text-primary border-primary/30",
   finalizado: "bg-info/15 text-info border-info/30",
 } as const;
 
-const labels = { pendente: "Pendente", aprovado: "Aprovado", negado: "Negado", finalizado: "Finalizado" };
+const labels = { pendente: "Pendente", aprovado: "Aprovado", negado: "Negado", comprado: "Comprado", finalizado: "Finalizado" };
 
 export function StatusBadge({ status }: { status: keyof typeof map }) {
   return (
