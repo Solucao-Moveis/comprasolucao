@@ -82,7 +82,7 @@ function RequestDetail() {
   const isApprover = req.sectors?.approver_id === user?.id || roles.includes("admin");
   const isOwner = req.requester_id === user?.id;
   const canDecide = isApprover && req.status === "pendente";
-  const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && req.status === "aprovado";
+  const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado");
 
   const decide = async (newStatus: "aprovado" | "negado") => {
     setBusy(true);
