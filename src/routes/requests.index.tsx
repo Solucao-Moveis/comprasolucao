@@ -111,6 +111,7 @@ function RequestsList() {
               <SelectItem value="pendente">Pendente</SelectItem>
               <SelectItem value="aprovado">Aprovado</SelectItem>
               <SelectItem value="negado">Negado</SelectItem>
+              <SelectItem value="comprado">Comprado</SelectItem>
               <SelectItem value="finalizado">Finalizado</SelectItem>
             </SelectContent>
           </Select>

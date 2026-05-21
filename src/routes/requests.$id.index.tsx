@@ -82,7 +82,7 @@ function RequestDetail() {
   const isApprover = req.sectors?.approver_id === user?.id || roles.includes("admin");
   const isOwner = req.requester_id === user?.id;
   const canDecide = isApprover && req.status === "pendente";
-  const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && req.status === "aprovado";
+  const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado");
 
   const decide = async (newStatus: "aprovado" | "negado") => {
     setBusy(true);
@@ -117,6 +117,7 @@ function RequestDetail() {
     const { error } = await supabase.from("purchase_requests").update({
       purchased_at: new Date().toISOString(),
       purchase_amount: amount,
+      status: "comprado",
     }).eq("id", id);
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -150,7 +151,7 @@ function RequestDetail() {
 
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
-  const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && req.status === "aprovado" && !req.arrived_at;
+  const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado") && !req.arrived_at;
 
   const remove = async () => {
     setBusy(true);

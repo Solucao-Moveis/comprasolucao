@@ -87,6 +87,7 @@ function Dashboard() {
     pendente: list.filter((r) => r.status === "pendente").length,
     aprovado: list.filter((r) => r.status === "aprovado").length,
     negado: list.filter((r) => r.status === "negado").length,
+    comprado: list.filter((r) => r.status === "comprado").length,
     finalizado: list.filter((r) => r.status === "finalizado").length,
   };
 
@@ -103,6 +104,7 @@ function Dashboard() {
     { name: "Pendente", value: counts.pendente },
     { name: "Aprovado", value: counts.aprovado },
     { name: "Negado", value: counts.negado },
+    { name: "Comprado", value: counts.comprado },
     { name: "Finalizado", value: counts.finalizado },
   ];
 
@@ -127,6 +129,7 @@ function Dashboard() {
     { label: "Pendentes", value: counts.pendente, icon: Clock, tone: "warning" },
     { label: "Aprovadas", value: counts.aprovado, icon: CheckCircle2, tone: "success" },
     { label: "Negadas", value: counts.negado, icon: XCircle, tone: "destructive" },
+    { label: "Compradas", value: counts.comprado, icon: PackageCheck, tone: "primary" },
     { label: "Finalizadas", value: counts.finalizado, icon: PackageCheck, tone: "info" },
   ];
 
