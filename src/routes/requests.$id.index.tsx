@@ -214,6 +214,27 @@ function RequestDetail() {
               <Link to="/requests/$id/edit" params={{ id }}><Pencil className="mr-2 h-4 w-4" />Editar</Link>
             </Button>
           )}
+          {canCancel && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={busy}>
+                  <Ban className="mr-2 h-4 w-4" />Cancelar
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancelar solicitação?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    A solicitação {req.number} será marcada como cancelada. Você pode reabri-la editando o status posteriormente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Voltar</AlertDialogCancel>
+                  <AlertDialogAction onClick={cancelRequest}>Confirmar</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
