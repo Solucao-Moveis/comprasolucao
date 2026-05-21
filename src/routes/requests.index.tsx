@@ -113,6 +113,7 @@ function RequestsList() {
               <SelectItem value="negado">Negado</SelectItem>
               <SelectItem value="comprado">Comprado</SelectItem>
               <SelectItem value="finalizado">Finalizado</SelectItem>
+              <SelectItem value="cancelado">Cancelado</SelectItem>
             </SelectContent>
           </Select>
           <Select value={sector} onValueChange={setSector}>
