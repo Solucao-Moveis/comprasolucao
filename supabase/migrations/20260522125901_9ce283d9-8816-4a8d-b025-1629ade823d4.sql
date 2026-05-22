@@ -1,0 +1,1 @@
+UPDATE public.purchase_requests SET status = 'comprado' WHERE purchased_at IS NOT NULL AND arrived_at IS NULL AND status = 'aprovado';
