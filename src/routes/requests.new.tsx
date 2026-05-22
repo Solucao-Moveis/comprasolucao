@@ -9,11 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Paperclip, X, Plus } from "lucide-react";
+import { Paperclip, X, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/requests/new")({
   component: () => <AppLayout><NewRequest /></AppLayout>,
