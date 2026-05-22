@@ -45,7 +45,22 @@ function ItemsPage() {
   const [search, setSearch] = useState("");
   const { data: items } = useQuery({
     queryKey: ["items"],
-    queryFn: async () => (await supabase.from("items").select("*").order("code")).data ?? [],
+    queryFn: async () => {
+      const all: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("items")
+          .select("*")
+          .order("code")
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+      }
+      return all;
+    },
   });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
