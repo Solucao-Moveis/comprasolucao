@@ -9,11 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Paperclip, X, Plus } from "lucide-react";
+import { Paperclip, X, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/requests/new")({
   component: () => <AppLayout><NewRequest /></AppLayout>,
@@ -41,6 +44,7 @@ function NewRequest() {
   const [description, setDescription] = useState("");
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [newItemBusy, setNewItemBusy] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -57,7 +61,22 @@ function NewRequest() {
   });
   const { data: items } = useQuery({
     queryKey: ["items"],
-    queryFn: async () => (await supabase.from("items").select("id,code,description,supplier,avg_price").order("code")).data ?? [],
+    queryFn: async () => {
+      const all: any[] = [];
+      const pageSize = 1000;
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+          .from("items")
+          .select("id,code,description,supplier,avg_price")
+          .order("code")
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+      }
+      return all;
+    },
   });
 
   const onItemSelect = (itemId: string) => {
@@ -183,14 +202,54 @@ function NewRequest() {
 
           <div className="space-y-2">
             <Label>Item do catálogo</Label>
-            <Select value={selectedItemId} onValueChange={onItemSelect}>
-              <SelectTrigger><SelectValue placeholder="Selecione um item (opcional)" /></SelectTrigger>
-              <SelectContent>
-                {items?.map((i: any) => (
-                  <SelectItem key={i.id} value={i.id}>{i.code} — {i.description}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover open={itemPickerOpen} onOpenChange={setItemPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  role="combobox"
+                  className="w-full justify-between font-normal"
+                >
+                  <span className="truncate">
+                    {selected ? `${selected.code} — ${selected.description}` : "Selecione um item (opcional)"}
+                  </span>
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <Command
+                  filter={(value, search) => {
+                    return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
+                  }}
+                >
+                  <CommandInput placeholder="Pesquisar por código ou descrição..." />
+                  <CommandList className="max-h-72">
+                    <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {selectedItemId && (
+                        <CommandItem
+                          value="__clear__"
+                          onSelect={() => { setSelectedItemId(""); setItemPickerOpen(false); }}
+                        >
+                          <X className="mr-2 h-4 w-4" /> Limpar seleção
+                        </CommandItem>
+                      )}
+                      {items?.map((i: any) => (
+                        <CommandItem
+                          key={i.id}
+                          value={`${i.code} ${i.description} ${i.supplier ?? ""}`}
+                          onSelect={() => { onItemSelect(i.id); setItemPickerOpen(false); }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", selectedItemId === i.id ? "opacity-100" : "opacity-0")} />
+                          <span className="font-mono text-xs mr-2">{i.code}</span>
+                          <span className="truncate">{i.description}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             {selected && Number(selected.avg_price) > 0 && (
               <p className="text-xs text-muted-foreground">Preço médio: R$ {Number(selected.avg_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} {selected.supplier ? `· ${selected.supplier}` : ""}</p>
             )}
