@@ -30,6 +30,7 @@ function RequestsList() {
   const [sector, setSector] = useState<string>("all");
   const [priority, setPriority] = useState<string>("all");
   const [from, setFrom] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
