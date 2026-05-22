@@ -236,6 +236,9 @@ ${rows.map((r: any) => {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="w-10 px-3 py-3">
+                  <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAll} aria-label="Selecionar todas" />
+                </th>
                 <th className="px-4 py-3">Número</th>
                 <th className="px-4 py-3">Item</th>
                 <th className="px-4 py-3">Descrição</th>
@@ -248,12 +251,15 @@ ${rows.map((r: any) => {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
+                <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
               )}
               {filtered.map((r: any) => {
                 const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
                 return (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
+                  <td className="px-3 py-3">
+                    <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} aria-label={`Selecionar ${r.number}`} />
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
                   </td>
