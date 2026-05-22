@@ -44,6 +44,7 @@ function NewRequest() {
   const [description, setDescription] = useState("");
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [newItemBusy, setNewItemBusy] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
