@@ -116,9 +116,35 @@ function Dashboard() {
     .map((r: any) => (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
   const sla = decidedTimes.length ? (decidedTimes.reduce((a, b) => a + b, 0) / decidedTimes.length).toFixed(1) : "—";
 
+  const [ccMonth, setCcMonth] = useState<string>("all");
+  const [ccDetail, setCcDetail] = useState<string | null>(null);
+
+  const purchasesList = useMemo(
+    () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
+    [list]
+  );
+
+  const ccMonthOptions = useMemo(() => {
+    const set = new Set<string>();
+    purchasesList.forEach((r: any) => {
+      const d = new Date(r.purchased_at);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    });
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [purchasesList]);
+
+  const ccFiltered = useMemo(
+    () =>
+      purchasesList.filter((r: any) => {
+        if (ccMonth === "all") return true;
+        const d = new Date(r.purchased_at);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === ccMonth;
+      }),
+    [purchasesList, ccMonth]
+  );
+
   const byCostCenter = Object.values(
-    list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
-      if (!r.purchase_amount) return acc;
+    ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
       acc[name] = acc[name] ?? { name, total: 0 };
       acc[name].total += Number(r.purchase_amount);
@@ -127,6 +153,14 @@ function Dashboard() {
   );
   const totalSpent = byCostCenter.reduce((sum, c: any) => sum + c.total, 0);
   const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const ccDetailRows = ccDetail
+    ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
+    : [];
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + Number(r.purchase_amount || 0), 0);
+  const fmtMonth = (k: string) => {
+    const [y, m] = k.split("-");
+    return `${m}/${y}`;
+  };
 
   const stats = [
     { label: "Pendentes", value: counts.pendente, icon: Clock, tone: "warning" },
