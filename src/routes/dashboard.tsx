@@ -4,10 +4,13 @@ import { LabelList } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
 import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle, PiggyBank } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
+import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/dashboard")({
   component: () => <AppLayout><Dashboard /></AppLayout>,
@@ -23,7 +26,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data: requests } = await supabase
         .from("purchase_requests")
-        .select("id,status,priority,created_at,decided_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name)");
+        .select("id,number,status,priority,description,quantity,unit,created_at,decided_at,purchased_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name),items(code,description)");
       return requests ?? [];
     },
   });
@@ -113,9 +116,35 @@ function Dashboard() {
     .map((r: any) => (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
   const sla = decidedTimes.length ? (decidedTimes.reduce((a, b) => a + b, 0) / decidedTimes.length).toFixed(1) : "—";
 
+  const [ccMonth, setCcMonth] = useState<string>("all");
+  const [ccDetail, setCcDetail] = useState<string | null>(null);
+
+  const purchasesList = useMemo(
+    () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
+    [list]
+  );
+
+  const ccMonthOptions = useMemo(() => {
+    const set = new Set<string>();
+    purchasesList.forEach((r: any) => {
+      const d = new Date(r.purchased_at);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    });
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [purchasesList]);
+
+  const ccFiltered = useMemo(
+    () =>
+      purchasesList.filter((r: any) => {
+        if (ccMonth === "all") return true;
+        const d = new Date(r.purchased_at);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === ccMonth;
+      }),
+    [purchasesList, ccMonth]
+  );
+
   const byCostCenter = Object.values(
-    list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
-      if (!r.purchase_amount) return acc;
+    ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
       acc[name] = acc[name] ?? { name, total: 0 };
       acc[name].total += Number(r.purchase_amount);
@@ -124,6 +153,14 @@ function Dashboard() {
   );
   const totalSpent = byCostCenter.reduce((sum, c: any) => sum + c.total, 0);
   const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const ccDetailRows = ccDetail
+    ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
+    : [];
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + Number(r.purchase_amount || 0), 0);
+  const fmtMonth = (k: string) => {
+    const [y, m] = k.split("-");
+    return `${m}/${y}`;
+  };
 
   const stats = [
     { label: "Pendentes", value: counts.pendente, icon: Clock, tone: "warning" },
@@ -261,26 +298,96 @@ function Dashboard() {
       </div>
 
       <Card className="p-5">
-        <div className="mb-1 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold">Valor de compras por centro de custo</h3>
-          <div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-foreground">{fmtBRL(totalSpent)}</span></div>
+          <div className="flex items-center gap-3">
+            <Select value={ccMonth} onValueChange={setCcMonth}>
+              <SelectTrigger className="h-8 w-[160px]"><SelectValue placeholder="Mês" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os meses</SelectItem>
+                {ccMonthOptions.map((k) => (
+                  <SelectItem key={k} value={k}>{fmtMonth(k)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-foreground">{fmtBRL(totalSpent)}</span></div>
+          </div>
         </div>
         {byCostCenter.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma compra registrada com valor ainda</p>
+          <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma compra registrada com valor no período</p>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={byCostCenter} margin={{ top: 8, right: 16, left: 24, bottom: 40 }}>
-              <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={11} interval={0} angle={-20} textAnchor="end" height={60} />
-              <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} width={90} tickFormatter={(v) => v >= 1000 ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k` : `R$ ${v.toLocaleString("pt-BR")}`} />
-              <Tooltip
-                contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }}
-                formatter={(v: number) => fmtBRL(v)}
-              />
-              <Bar dataKey="total" fill="oklch(0.62 0.16 150)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <>
+            <p className="mb-2 text-xs text-muted-foreground">Clique em uma barra para ver as compras do centro de custo.</p>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={byCostCenter} margin={{ top: 8, right: 16, left: 24, bottom: 40 }}>
+                <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={11} interval={0} angle={-20} textAnchor="end" height={60} />
+                <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} width={90} tickFormatter={(v) => v >= 1000 ? `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}k` : `R$ ${v.toLocaleString("pt-BR")}`} />
+                <Tooltip
+                  contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }}
+                  formatter={(v: number) => fmtBRL(v)}
+                />
+                <Bar
+                  dataKey="total"
+                  fill="oklch(0.62 0.16 150)"
+                  radius={[6, 6, 0, 0]}
+                  style={{ cursor: "pointer" }}
+                  onClick={(d: any) => setCcDetail(d?.name ?? null)}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </>
         )}
       </Card>
+
+      <Dialog open={!!ccDetail} onOpenChange={(o) => !o && setCcDetail(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              Compras — {ccDetail} {ccMonth !== "all" && <span className="text-sm font-normal text-muted-foreground">({fmtMonth(ccMonth)})</span>}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Item</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2 text-right">Qtd.</th>
+                  <th className="px-2 py-2 text-right">Valor</th>
+                  <th className="px-2 py-2">Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ccDetailRows.length === 0 && (
+                  <tr><td colSpan={6} className="px-2 py-6 text-center text-muted-foreground">Sem registros</td></tr>
+                )}
+                {ccDetailRows.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-right">{Number(r.quantity).toLocaleString("pt-BR")} {r.unit}</td>
+                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(Number(r.purchase_amount))}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{new Date(r.purchased_at).toLocaleDateString("pt-BR")}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {ccDetailRows.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold">
+                    <td className="px-2 py-2" colSpan={4}>Total</td>
+                    <td className="px-2 py-2 text-right">{fmtBRL(ccDetailTotal)}</td>
+                    <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

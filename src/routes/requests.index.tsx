@@ -11,8 +11,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useMemo, useState } from "react";
-import { Plus, Search, Download, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, Download, Pencil, Trash2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ function RequestsList() {
   const [sector, setSector] = useState<string>("all");
   const [priority, setPriority] = useState<string>("all");
   const [from, setFrom] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -85,14 +87,107 @@ function RequestsList() {
     URL.revokeObjectURL(url);
   };
 
+  const allVisibleSelected = filtered.length > 0 && filtered.every((r: any) => selected.has(r.id));
+  const toggleAll = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach((r: any) => next.delete(r.id));
+      else filtered.forEach((r: any) => next.add(r.id));
+      return next;
+    });
+  };
+  const toggleOne = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const generateReport = async () => {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return toast.error("Selecione ao menos uma solicitação");
+    const rows = (requests ?? []).filter((r: any) => selected.has(r.id));
+    const { data: itemsData } = await supabase
+      .from("purchase_requests")
+      .select("id,items(code,description),cost_centers(code,name)")
+      .in("id", ids);
+    const enrich = new Map((itemsData ?? []).map((x: any) => [x.id, x]));
+    const fmtBRL = (v: any) => v == null ? "—" : `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    const esc = (s: any) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
+    const total = rows.reduce((s: number, r: any) => s + Number(r.purchase_amount || 0), 0);
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Relatório de Solicitações</title>
+<style>
+body{font-family:system-ui,sans-serif;color:#111;padding:24px;max-width:900px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:18px 0 6px;color:#444}
+.meta{font-size:12px;color:#666;margin-bottom:16px}
+.card{border:1px solid #ddd;border-radius:8px;padding:14px;margin-bottom:12px;page-break-inside:avoid}
+.row{display:flex;justify-content:space-between;gap:12px;font-size:13px;margin:2px 0}
+.label{color:#666}.val{font-weight:500}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#eef;border:1px solid #cce;margin-right:6px}
+.total{margin-top:18px;font-size:14px;font-weight:600;text-align:right}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+th,td{border:1px solid #ddd;padding:6px;text-align:left}
+th{background:#f5f5f7}
+@media print{.no-print{display:none}}
+</style></head><body>
+<div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
+<h1>Relatório de Solicitações de Compra</h1>
+<div class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} · ${rows.length} solicitação(ões)</div>
+<table>
+<thead><tr><th>Número</th><th>Status</th><th>Setor</th><th>Item</th><th>Descrição</th><th>Qtd.</th><th>Valor</th><th>Data</th></tr></thead>
+<tbody>
+${rows.map((r: any) => {
+  const ex = enrich.get(r.id) as any;
+  return `<tr>
+  <td>${esc(r.number)}</td>
+  <td>${esc(r.status)}</td>
+  <td>${esc(r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—")}</td>
+  <td>${esc(ex?.items?.code ?? "—")}</td>
+  <td>${esc(ex?.items?.description ?? r.description)}</td>
+  <td>${esc(r.quantity)} ${esc(r.unit)}</td>
+  <td>${fmtBRL(r.purchase_amount)}</td>
+  <td>${esc(format(new Date(r.created_at), "dd/MM/yyyy"))}</td>
+</tr>`;
+}).join("")}
+</tbody>
+</table>
+<div class="total">Total comprado: ${fmtBRL(total)}</div>
+<h2>Detalhamento</h2>
+${rows.map((r: any) => {
+  const ex = enrich.get(r.id) as any;
+  return `<div class="card">
+  <div class="row"><span><span class="tag">${esc(r.number)}</span><span class="tag">${esc(r.status)}</span><span class="tag">${esc(r.priority)}</span></span><span class="label">${esc(format(new Date(r.created_at), "dd/MM/yyyy"))}</span></div>
+  <div class="row"><span class="label">Solicitante</span><span class="val">${esc(r.profiles?.full_name ?? r.profiles?.email ?? "—")}</span></div>
+  <div class="row"><span class="label">Setor</span><span class="val">${esc(r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—")}</span></div>
+  <div class="row"><span class="label">Centro de custo</span><span class="val">${esc(ex?.cost_centers ? `${ex.cost_centers.code} — ${ex.cost_centers.name}` : "—")}</span></div>
+  <div class="row"><span class="label">Item</span><span class="val">${esc(ex?.items ? `${ex.items.code} — ${ex.items.description}` : "—")}</span></div>
+  <div class="row"><span class="label">Descrição</span><span class="val">${esc(r.description)}</span></div>
+  <div class="row"><span class="label">Quantidade</span><span class="val">${esc(r.quantity)} ${esc(r.unit)}</span></div>
+  <div class="row"><span class="label">Necessário em</span><span class="val">${esc(r.needed_by)}</span></div>
+  <div class="row"><span class="label">Justificativa</span><span class="val">${esc(r.justification)}</span></div>
+  <div class="row"><span class="label">Valor da compra</span><span class="val">${fmtBRL(r.purchase_amount)}</span></div>
+  ${r.decision_note ? `<div class="row"><span class="label">Decisão</span><span class="val">${esc(r.decision_note)}</span></div>` : ""}
+</div>`;
+}).join("")}
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (!w) return toast.error("Habilite popups para gerar o relatório");
+    w.document.write(html);
+    w.document.close();
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Solicitações</h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} resultado(s)</p>
+          <p className="text-sm text-muted-foreground">{filtered.length} resultado(s){selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={generateReport} disabled={selected.size === 0}>
+            <FileText className="mr-2 h-4 w-4" />Gerar relatório
+          </Button>
           <Button variant="outline" onClick={exportCSV}><Download className="mr-2 h-4 w-4" />Exportar</Button>
           <Button asChild><Link to="/requests/new"><Plus className="mr-2 h-4 w-4" />Nova solicitação</Link></Button>
         </div>
@@ -141,6 +236,9 @@ function RequestsList() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                <th className="w-10 px-3 py-3">
+                  <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAll} aria-label="Selecionar todas" />
+                </th>
                 <th className="px-4 py-3">Número</th>
                 <th className="px-4 py-3">Item</th>
                 <th className="px-4 py-3">Descrição</th>
@@ -153,12 +251,15 @@ function RequestsList() {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
+                <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
               )}
               {filtered.map((r: any) => {
                 const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
                 return (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
+                  <td className="px-3 py-3">
+                    <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} aria-label={`Selecionar ${r.number}`} />
+                  </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
                   </td>
