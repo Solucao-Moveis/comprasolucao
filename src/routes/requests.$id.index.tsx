@@ -128,6 +128,36 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["request", id] });
   };
 
+  const markPurchasedFromItems = async () => {
+    if (!reqItems || reqItems.length === 0) return toast.error("Sem itens");
+    const parsed = reqItems.map((it: any) => {
+      const raw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
+      const price = parseFloat(String(raw).replace(",", "."));
+      return { id: it.id, quantity: Number(it.quantity), price };
+    });
+    if (parsed.some((p) => isNaN(p.price) || p.price < 0)) {
+      return toast.error("Informe o preço unitário de todos os itens");
+    }
+    const total = parsed.reduce((s, p) => s + p.price * p.quantity, 0);
+    setBusy(true);
+    for (const p of parsed) {
+      const { error } = await supabase.from("request_items")
+        .update({ unit_price: p.price } as any).eq("id", p.id);
+      if (error) { setBusy(false); return toast.error(error.message); }
+    }
+    const { error } = await supabase.from("purchase_requests").update({
+      purchased_at: new Date().toISOString(),
+      purchase_amount: total,
+      status: "comprado",
+    }).eq("id", id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Compra registrada");
+    setUnitPrices({});
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["request_items", id] });
+  };
+
   const markArrived = async () => {
     setBusy(true);
     const nowIso = new Date().toISOString();
