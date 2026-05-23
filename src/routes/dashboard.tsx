@@ -26,7 +26,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data: requests } = await supabase
         .from("purchase_requests")
-        .select("id,number,status,priority,description,quantity,unit,created_at,decided_at,purchased_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name),items(code,description)");
+        .select("id,number,status,priority,description,quantity,unit,created_at,decided_at,purchased_at,arrived_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name),items(code,description)");
       return requests ?? [];
     },
   });
@@ -111,10 +111,24 @@ function Dashboard() {
     { name: "Finalizado", value: counts.finalizado },
   ];
 
-  const decidedTimes = list
-    .filter((r: any) => r.decided_at)
-    .map((r: any) => (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
-  const sla = decidedTimes.length ? (decidedTimes.reduce((a, b) => a + b, 0) / decidedTimes.length).toFixed(1) : "—";
+  const avgHours = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  const fmtDuration = (h: number | null) => {
+    if (h == null) return "—";
+    if (h < 24) return `${h.toFixed(1)} h`;
+    return `${(h / 24).toFixed(1)} d`;
+  };
+  const tCreateToApprove = avgHours(
+    list.filter((r: any) => r.decided_at).map((r: any) =>
+      (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5)
+  );
+  const tApproveToPurchase = avgHours(
+    list.filter((r: any) => r.decided_at && r.purchased_at).map((r: any) =>
+      (new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5)
+  );
+  const tPurchaseToArrival = avgHours(
+    list.filter((r: any) => r.purchased_at && r.arrived_at).map((r: any) =>
+      (new Date(r.arrived_at).getTime() - new Date(r.purchased_at).getTime()) / 36e5)
+  );
 
   const [ccMonth, setCcMonth] = useState<string>("all");
   const [ccDetail, setCcDetail] = useState<string | null>(null);
@@ -221,14 +235,32 @@ function Dashboard() {
         </Card>
       )}
 
-      <Card className="p-5">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <TrendingUp className="h-4 w-4" />
-          SLA médio de atendimento
-        </div>
-        <div className="mt-1 text-3xl font-bold">{sla}{sla !== "—" && " h"}</div>
-        <p className="text-xs text-muted-foreground">Tempo médio entre criação e decisão</p>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Abertura → Aprovação
+          </div>
+          <div className="mt-1 text-3xl font-bold">{fmtDuration(tCreateToApprove)}</div>
+          <p className="text-xs text-muted-foreground">Tempo médio entre criação e decisão do aprovador</p>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Aprovação → Compra
+          </div>
+          <div className="mt-1 text-3xl font-bold">{fmtDuration(tApproveToPurchase)}</div>
+          <p className="text-xs text-muted-foreground">Tempo médio entre aprovação e registro da compra</p>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Compra → Chegada
+          </div>
+          <div className="mt-1 text-3xl font-bold">{fmtDuration(tPurchaseToArrival)}</div>
+          <p className="text-xs text-muted-foreground">Tempo médio entre compra e chegada do item</p>
+        </Card>
+      </div>
 
       {dueItems.length > 0 && (
         <Card className="p-5 border-warning/40 bg-warning/5">
