@@ -340,32 +340,38 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          expected_price: number | null
           id: string
           item_id: string | null
           position: number
           quantity: number
           request_id: string
           unit: string
+          unit_price: number | null
         }
         Insert: {
           created_at?: string
           description: string
+          expected_price?: number | null
           id?: string
           item_id?: string | null
           position?: number
           quantity: number
           request_id: string
           unit: string
+          unit_price?: number | null
         }
         Update: {
           created_at?: string
           description?: string
+          expected_price?: number | null
           id?: string
           item_id?: string | null
           position?: number
           quantity?: number
           request_id?: string
           unit?: string
+          unit_price?: number | null
         }
         Relationships: [
           {
