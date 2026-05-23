@@ -87,7 +87,6 @@ function NewRequest() {
     updateRow(uid, {
       item_id: itemId,
       description: it?.description ?? "",
-      expected_price: it?.avg_price && Number(it.avg_price) > 0 ? String(it.avg_price) : "",
     });
   };
 
@@ -107,11 +106,6 @@ function NewRequest() {
     setItemDialogOpen(false);
   };
 
-  const totalExpected = rows.reduce((sum, r) => {
-    const q = parseFloat(r.quantity.replace(",", "."));
-    const p = parseFloat(r.expected_price.replace(",", "."));
-    return sum + (isNaN(q) || isNaN(p) ? 0 : q * p);
-  }, 0);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
