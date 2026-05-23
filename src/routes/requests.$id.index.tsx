@@ -74,7 +74,7 @@ function RequestDetail() {
   const { data: reqItems } = useQuery({
     queryKey: ["request_items", id],
     queryFn: async () => {
-      const { data } = await supabase.from("request_items").select("*, items(code,description,supplier)").eq("request_id", id).order("position");
+      const { data } = await supabase.from("request_items").select("*, items(code,description,supplier,avg_price)").eq("request_id", id).order("position");
       return data ?? [];
     },
   });
