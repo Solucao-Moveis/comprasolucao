@@ -278,7 +278,7 @@ function NewRequest() {
                     />
                   </div>
 
-                  <div class="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Quantidade *</Label>
                       <Input
