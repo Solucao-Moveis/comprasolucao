@@ -74,7 +74,7 @@ function RequestDetail() {
   const { data: reqItems } = useQuery({
     queryKey: ["request_items", id],
     queryFn: async () => {
-      const { data } = await supabase.from("request_items").select("*, items(code,description,supplier)").eq("request_id", id).order("position");
+      const { data } = await supabase.from("request_items").select("*, items(code,description,supplier,avg_price)").eq("request_id", id).order("position");
       return data ?? [];
     },
   });
@@ -312,9 +312,9 @@ function RequestDetail() {
               const price = isNaN(parsedPrice) ? null : parsedPrice;
               const qty = Number(it.quantity);
               const total = price != null ? price * qty : null;
-              const expected = it.expected_price != null ? Number(it.expected_price) : null;
-              const save = price != null && expected != null ? (expected - price) * qty : null;
-              return { it, price, total, expected, save };
+              const avg = it.items?.avg_price != null ? Number(it.items.avg_price) : null;
+              const save = price != null && avg != null && avg > 0 ? (avg - price) * qty : null;
+              return { it, price, total, avg, save };
             });
             const grandTotal = rowsTotals.reduce((s, r) => s + (r.total ?? 0), 0);
             const grandSave = rowsTotals.reduce((s, r) => s + (r.save ?? 0), 0);
@@ -330,22 +330,18 @@ function RequestDetail() {
                         <th className="py-2 text-left font-medium">Descrição</th>
                         <th className="py-2 text-right font-medium">Qtd</th>
                         <th className="py-2 text-left font-medium">Un</th>
-                        <th className="py-2 text-right font-medium">Preço esp.</th>
                         <th className="py-2 text-right font-medium">Preço un.</th>
                         <th className="py-2 text-right font-medium">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rowsTotals.map(({ it, price, total, expected, save }, idx) => (
+                      {rowsTotals.map(({ it, price, total, avg, save }, idx) => (
                         <tr key={it.id} className="border-b last:border-0">
                           <td className="py-2 text-muted-foreground">{idx + 1}</td>
                           <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
                           <td className="py-2">{it.description}</td>
                           <td className="py-2 text-right">{Number(it.quantity).toLocaleString("pt-BR")}</td>
                           <td className="py-2">{it.unit}</td>
-                          <td className="py-2 text-right text-muted-foreground">
-                            {expected != null ? `R$ ${expected.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
-                          </td>
                           <td className="py-2 text-right">
                             {editable ? (
                               <Input
@@ -356,6 +352,11 @@ function RequestDetail() {
                               />
                             ) : (
                               price != null ? `R$ ${price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"
+                            )}
+                            {avg != null && avg > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                Média: R$ {avg.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </div>
                             )}
                             {save != null && save !== 0 && !editable && (
                               <div className={`text-xs ${save > 0 ? "text-success" : "text-destructive"}`}>
@@ -371,14 +372,14 @@ function RequestDetail() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t">
-                        <td colSpan={7} className="py-2 text-right text-sm font-semibold">Total da compra</td>
+                        <td colSpan={6} className="py-2 text-right text-sm font-semibold">Total da compra</td>
                         <td className="py-2 text-right text-sm font-bold">
                           R$ {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                       {hasSavings && (
                         <tr>
-                          <td colSpan={7} className="py-1 text-right text-xs text-muted-foreground">Economia total</td>
+                          <td colSpan={6} className="py-1 text-right text-xs text-muted-foreground">Economia total (vs. preço médio)</td>
                           <td className={`py-1 text-right text-xs font-semibold ${grandSave >= 0 ? "text-success" : "text-destructive"}`}>
                             R$ {grandSave.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
