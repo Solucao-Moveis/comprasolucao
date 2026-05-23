@@ -30,6 +30,8 @@ function RequestDetail() {
   const [decisionNote, setDecisionNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [purchaseAmount, setPurchaseAmount] = useState("");
+  const [unitPrices, setUnitPrices] = useState<Record<string, string>>({});
+
 
   const { data: req } = useQuery({
     queryKey: ["request", id],
