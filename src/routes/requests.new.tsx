@@ -250,25 +250,21 @@ function NewRequest() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Item do catálogo</Label>
-                    <ItemPicker
-                      items={items ?? []}
-                      value={row.item_id}
-                      selected={selected}
-                      onPick={(id) => onPickItem(row.uid, id)}
-                      onClear={() => updateRow(row.uid, { item_id: "" })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Descrição *</Label>
-                    <Textarea
-                      rows={2}
-                      placeholder="Descreva o material ou serviço..."
-                      value={row.description}
-                      onChange={(e) => updateRow(row.uid, { description: e.target.value })}
-                    />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Código *</Label>
+                      <ItemPicker
+                        items={items ?? []}
+                        value={row.item_id}
+                        selected={selected}
+                        onPick={(id) => onPickItem(row.uid, id)}
+                        onClear={() => updateRow(row.uid, { item_id: "", description: "" })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descrição</Label>
+                      <Input value={row.description} disabled placeholder="Selecione o código" />
+                    </div>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
@@ -293,14 +289,8 @@ function NewRequest() {
               );
             })}
           </div>
-
-          {totalExpected > 0 && (
-            <div className="flex justify-end text-sm">
-              <span className="text-muted-foreground mr-2">Total esperado:</span>
-              <span className="font-semibold">R$ {totalExpected.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-            </div>
-          )}
         </Card>
+
 
         <Card className="p-6 space-y-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
