@@ -27,12 +27,11 @@ type ItemRow = {
   description: string;
   quantity: string;
   unit: string;
-  expected_price: string;
 };
 
 const newRow = (): ItemRow => ({
   uid: Math.random().toString(36).slice(2),
-  item_id: "", description: "", quantity: "", unit: "", expected_price: "",
+  item_id: "", description: "", quantity: "", unit: "",
 });
 
 function NewRequest() {
@@ -88,7 +87,6 @@ function NewRequest() {
     updateRow(uid, {
       item_id: itemId,
       description: it?.description ?? "",
-      expected_price: it?.avg_price && Number(it.avg_price) > 0 ? String(it.avg_price) : "",
     });
   };
 
@@ -108,11 +106,6 @@ function NewRequest() {
     setItemDialogOpen(false);
   };
 
-  const totalExpected = rows.reduce((sum, r) => {
-    const q = parseFloat(r.quantity.replace(",", "."));
-    const p = parseFloat(r.expected_price.replace(",", "."));
-    return sum + (isNaN(q) || isNaN(p) ? 0 : q * p);
-  }, 0);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -131,8 +124,8 @@ function NewRequest() {
     const validRows = rows.map((r) => ({
       ...r,
       quantity: parseFloat(r.quantity.replace(",", ".")),
-      expected_price: r.expected_price ? parseFloat(r.expected_price.replace(",", ".")) : null,
-    })).filter((r) => r.description.trim() && !isNaN(r.quantity) && r.quantity > 0 && r.unit.trim());
+    })).filter((r) => r.item_id && r.description.trim() && !isNaN(r.quantity) && r.quantity > 0 && r.unit.trim());
+
 
     if (validRows.length === 0) return toast.error("Adicione ao menos um item válido");
 
@@ -168,7 +161,7 @@ function NewRequest() {
       quantity: r.quantity,
       unit: r.unit.trim(),
       position: idx,
-      expected_price: r.expected_price,
+
     }));
     const { error: riErr } = await supabase.from("request_items").insert(itemsPayload as any);
     if (riErr) { setBusy(false); toast.error(`Itens: ${riErr.message}`); return; }
@@ -257,25 +250,21 @@ function NewRequest() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Item do catálogo</Label>
-                    <ItemPicker
-                      items={items ?? []}
-                      value={row.item_id}
-                      selected={selected}
-                      onPick={(id) => onPickItem(row.uid, id)}
-                      onClear={() => updateRow(row.uid, { item_id: "" })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Descrição *</Label>
-                    <Textarea
-                      rows={2}
-                      placeholder="Descreva o material ou serviço..."
-                      value={row.description}
-                      onChange={(e) => updateRow(row.uid, { description: e.target.value })}
-                    />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Código *</Label>
+                      <ItemPicker
+                        items={items ?? []}
+                        value={row.item_id}
+                        selected={selected}
+                        onPick={(id) => onPickItem(row.uid, id)}
+                        onClear={() => updateRow(row.uid, { item_id: "", description: "" })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Descrição</Label>
+                      <Input value={row.description} disabled placeholder="Selecione o código" />
+                    </div>
                   </div>
 
                   <div className="grid gap-3 md:grid-cols-2">
@@ -300,14 +289,8 @@ function NewRequest() {
               );
             })}
           </div>
-
-          {totalExpected > 0 && (
-            <div className="flex justify-end text-sm">
-              <span className="text-muted-foreground mr-2">Total esperado:</span>
-              <span className="font-semibold">R$ {totalExpected.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-            </div>
-          )}
         </Card>
+
 
         <Card className="p-6 space-y-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
