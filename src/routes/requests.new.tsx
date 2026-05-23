@@ -278,7 +278,7 @@ function NewRequest() {
                     />
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Quantidade *</Label>
                       <Input
@@ -293,15 +293,6 @@ function NewRequest() {
                         placeholder="un, kg, h..."
                         value={row.unit}
                         onChange={(e) => updateRow(row.uid, { unit: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Preço esperado (R$)</Label>
-                      <Input
-                        type="number" step="0.01" min="0"
-                        placeholder="0,00"
-                        value={row.expected_price}
-                        onChange={(e) => updateRow(row.uid, { expected_price: e.target.value })}
                       />
                     </div>
                   </div>
