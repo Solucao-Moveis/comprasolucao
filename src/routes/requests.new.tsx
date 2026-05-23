@@ -161,7 +161,7 @@ function NewRequest() {
       quantity: r.quantity,
       unit: r.unit.trim(),
       position: idx,
-      expected_price: r.expected_price,
+
     }));
     const { error: riErr } = await supabase.from("request_items").insert(itemsPayload as any);
     if (riErr) { setBusy(false); toast.error(`Itens: ${riErr.message}`); return; }
