@@ -14,24 +14,25 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
-import { z } from "zod";
-import { Paperclip, X, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { Paperclip, X, Plus, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/requests/new")({
   component: () => <AppLayout><NewRequest /></AppLayout>,
 });
 
-const schema = z.object({
-  sector_id: z.string().uuid("Selecione o setor"),
-  description: z.string().trim().min(2, "Descrição obrigatória").max(2000),
-  quantity: z.coerce.number().positive("Quantidade deve ser positiva"),
-  unit: z.string().trim().min(1, "Unidade obrigatória").max(20),
-  needed_by: z.string().min(1, "Informe a data necessária"),
-  justification: z.string().trim().min(5, "Justificativa muito curta").max(2000),
-  priority: z.enum(["baixa", "media", "alta"]),
-  cost_center_id: z.string().uuid().optional().or(z.literal("")),
-  item_id: z.string().uuid().optional().or(z.literal("")),
+type ItemRow = {
+  uid: string;
+  item_id: string;
+  description: string;
+  quantity: string;
+  unit: string;
+  expected_price: string;
+};
+
+const newRow = (): ItemRow => ({
+  uid: Math.random().toString(36).slice(2),
+  item_id: "", description: "", quantity: "", unit: "", expected_price: "",
 });
 
 function NewRequest() {
@@ -40,11 +41,9 @@ function NewRequest() {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState<string>("");
-  const [description, setDescription] = useState("");
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [newItemBusy, setNewItemBusy] = useState(false);
-  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [rows, setRows] = useState<ItemRow[]>([newRow()]);
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -79,10 +78,18 @@ function NewRequest() {
     },
   });
 
-  const onItemSelect = (itemId: string) => {
-    setSelectedItemId(itemId);
+  const updateRow = (uid: string, patch: Partial<ItemRow>) =>
+    setRows((rs) => rs.map((r) => (r.uid === uid ? { ...r, ...patch } : r)));
+  const removeRow = (uid: string) => setRows((rs) => rs.length === 1 ? rs : rs.filter((r) => r.uid !== uid));
+  const addRow = () => setRows((rs) => [...rs, newRow()]);
+
+  const onPickItem = (uid: string, itemId: string) => {
     const it = items?.find((i: any) => i.id === itemId);
-    if (it) setDescription(it.description);
+    updateRow(uid, {
+      item_id: itemId,
+      description: it?.description ?? "",
+      expected_price: it?.avg_price && Number(it.avg_price) > 0 ? String(it.avg_price) : "",
+    });
   };
 
   const createItemInline = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -93,45 +100,78 @@ function NewRequest() {
     const supplier = String(fd.get("supplier") ?? "").trim();
     if (!code || !desc) { toast.error("Código e descrição são obrigatórios"); return; }
     setNewItemBusy(true);
-    const { data, error } = await supabase.from("items").insert({ code, description: desc, supplier: supplier || null }).select("id,description").single();
+    const { error } = await supabase.from("items").insert({ code, description: desc, supplier: supplier || null });
     setNewItemBusy(false);
-    if (error || !data) { toast.error(error?.message ?? "Erro"); return; }
+    if (error) { toast.error(error.message); return; }
     toast.success("Item cadastrado");
     await qc.invalidateQueries({ queryKey: ["items"] });
-    setSelectedItemId(data.id);
-    setDescription(data.description);
     setItemDialogOpen(false);
   };
+
+  const totalExpected = rows.reduce((sum, r) => {
+    const q = parseFloat(r.quantity.replace(",", "."));
+    const p = parseFloat(r.expected_price.replace(",", "."));
+    return sum + (isNaN(q) || isNaN(p) ? 0 : q * p);
+  }, 0);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
     const fd = new FormData(e.currentTarget);
-    const obj: Record<string, any> = Object.fromEntries(fd.entries());
-    obj.description = description;
-    obj.item_id = selectedItemId;
-    const parsed = schema.safeParse(obj);
-    if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
+    const sector_id = String(fd.get("sector_id") ?? "");
+    const cost_center_id = String(fd.get("cost_center_id") ?? "");
+    const needed_by = String(fd.get("needed_by") ?? "");
+    const justification = String(fd.get("justification") ?? "").trim();
+    const priority = String(fd.get("priority") ?? "media") as "baixa" | "media" | "alta";
+
+    if (!sector_id) return toast.error("Selecione o setor");
+    if (!needed_by) return toast.error("Informe a data necessária");
+    if (justification.length < 5) return toast.error("Justificativa muito curta");
+
+    const validRows = rows.map((r) => ({
+      ...r,
+      quantity: parseFloat(r.quantity.replace(",", ".")),
+      expected_price: r.expected_price ? parseFloat(r.expected_price.replace(",", ".")) : null,
+    })).filter((r) => r.description.trim() && !isNaN(r.quantity) && r.quantity > 0 && r.unit.trim());
+
+    if (validRows.length === 0) return toast.error("Adicione ao menos um item válido");
 
     setBusy(true);
+    const first = validRows[0];
+    const aggDescription = validRows.length === 1
+      ? first.description
+      : `${validRows.length} itens: ${validRows.map((r) => r.description).join("; ").slice(0, 1500)}`;
+
     const { data: inserted, error } = await supabase
       .from("purchase_requests")
       .insert({
-        sector_id: parsed.data.sector_id,
+        sector_id,
         requester_id: user.id,
-        description: parsed.data.description,
-        quantity: parsed.data.quantity,
-        unit: parsed.data.unit,
-        needed_by: parsed.data.needed_by,
-        justification: parsed.data.justification,
-        priority: parsed.data.priority,
-        cost_center_id: parsed.data.cost_center_id || null,
-        item_id: parsed.data.item_id || null,
+        description: aggDescription,
+        quantity: first.quantity,
+        unit: first.unit,
+        needed_by,
+        justification,
+        priority,
+        cost_center_id: cost_center_id || null,
+        item_id: first.item_id || null,
       })
       .select("id,number")
       .single();
 
     if (error || !inserted) { setBusy(false); toast.error(error?.message ?? "Erro"); return; }
+
+    const itemsPayload = validRows.map((r, idx) => ({
+      request_id: inserted.id,
+      item_id: r.item_id || null,
+      description: r.description.trim(),
+      quantity: r.quantity,
+      unit: r.unit.trim(),
+      position: idx,
+      expected_price: r.expected_price,
+    }));
+    const { error: riErr } = await supabase.from("request_items").insert(itemsPayload as any);
+    if (riErr) { setBusy(false); toast.error(`Itens: ${riErr.message}`); return; }
 
     for (const f of files) {
       const path = `${user.id}/${inserted.id}/${Date.now()}-${f.name}`;
@@ -147,10 +187,8 @@ function NewRequest() {
     navigate({ to: "/requests/$id", params: { id: inserted.id } });
   };
 
-  const selected = items?.find((i: any) => i.id === selectedItemId);
-
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto max-w-5xl space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Nova solicitação</h1>
         <p className="text-sm text-muted-foreground">Preencha os campos para abrir uma solicitação de compra.</p>
@@ -181,100 +219,103 @@ function NewRequest() {
 
         <Card className="p-6 space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Item</h3>
-            <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-              <DialogTrigger asChild>
-                <Button type="button" variant="ghost" size="sm">
-                  <Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
-                <form onSubmit={createItemInline} className="space-y-4">
-                  <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
-                  <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
-                  <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
-                  <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Item do catálogo</Label>
-            <Popover open={itemPickerOpen} onOpenChange={setItemPickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  className="w-full justify-between font-normal"
-                >
-                  <span className="truncate">
-                    {selected ? `${selected.code} — ${selected.description}` : "Selecione um item (opcional)"}
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                <Command
-                  filter={(value, search) => {
-                    return value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0;
-                  }}
-                >
-                  <CommandInput placeholder="Pesquisar por código ou descrição..." />
-                  <CommandList className="max-h-72">
-                    <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {selectedItemId && (
-                        <CommandItem
-                          value="__clear__"
-                          onSelect={() => { setSelectedItemId(""); setItemPickerOpen(false); }}
-                        >
-                          <X className="mr-2 h-4 w-4" /> Limpar seleção
-                        </CommandItem>
-                      )}
-                      {items?.map((i: any) => (
-                        <CommandItem
-                          key={i.id}
-                          value={`${i.code} ${i.description} ${i.supplier ?? ""}`}
-                          onSelect={() => { onItemSelect(i.id); setItemPickerOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", selectedItemId === i.id ? "opacity-100" : "opacity-0")} />
-                          <span className="font-mono text-xs mr-2">{i.code}</span>
-                          <span className="truncate">{i.description}</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-            {selected && Number(selected.avg_price) > 0 && (
-              <p className="text-xs text-muted-foreground">Preço médio: R$ {Number(selected.avg_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} {selected.supplier ? `· ${selected.supplier}` : ""}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Descrição *</Label>
-            <Textarea
-              rows={3}
-              placeholder="Descreva o material ou serviço..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Quantidade *</Label>
-              <Input name="quantity" type="number" step="0.01" min="0" />
-            </div>
-            <div className="space-y-2">
-              <Label>Unidade *</Label>
-              <Input name="unit" placeholder="un, kg, h..." />
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens</h3>
+            <div className="flex gap-2">
+              <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="ghost" size="sm">
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
+                  <form onSubmit={createItemInline} className="space-y-4">
+                    <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
+                    <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
+                    <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
+                    <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar item
+              </Button>
             </div>
           </div>
+
+          <div className="space-y-3">
+            {rows.map((row, idx) => {
+              const selected = items?.find((i: any) => i.id === row.item_id);
+              return (
+                <div key={row.uid} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Item {idx + 1}</span>
+                    {rows.length > 1 && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(row.uid)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Item do catálogo</Label>
+                    <ItemPicker
+                      items={items ?? []}
+                      value={row.item_id}
+                      selected={selected}
+                      onPick={(id) => onPickItem(row.uid, id)}
+                      onClear={() => updateRow(row.uid, { item_id: "" })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Descrição *</Label>
+                    <Textarea
+                      rows={2}
+                      placeholder="Descreva o material ou serviço..."
+                      value={row.description}
+                      onChange={(e) => updateRow(row.uid, { description: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label>Quantidade *</Label>
+                      <Input
+                        type="number" step="0.01" min="0"
+                        value={row.quantity}
+                        onChange={(e) => updateRow(row.uid, { quantity: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Unidade *</Label>
+                      <Input
+                        placeholder="un, kg, h..."
+                        value={row.unit}
+                        onChange={(e) => updateRow(row.uid, { unit: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Preço esperado (R$)</Label>
+                      <Input
+                        type="number" step="0.01" min="0"
+                        placeholder="0,00"
+                        value={row.expected_price}
+                        onChange={(e) => updateRow(row.uid, { expected_price: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {totalExpected > 0 && (
+            <div className="flex justify-end text-sm">
+              <span className="text-muted-foreground mr-2">Total esperado:</span>
+              <span className="font-semibold">R$ {totalExpected.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
         </Card>
 
         <Card className="p-6 space-y-5">
@@ -322,5 +363,49 @@ function NewRequest() {
         </div>
       </form>
     </div>
+  );
+}
+
+function ItemPicker({ items, value, selected, onPick, onClear }: {
+  items: any[]; value: string; selected: any; onPick: (id: string) => void; onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" role="combobox" className="w-full justify-between font-normal">
+          <span className="truncate">
+            {selected ? `${selected.code} — ${selected.description}` : "Selecione um item (opcional)"}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command filter={(val, search) => val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0}>
+          <CommandInput placeholder="Pesquisar por código ou descrição..." />
+          <CommandList className="max-h-72">
+            <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+            <CommandGroup>
+              {value && (
+                <CommandItem value="__clear__" onSelect={() => { onClear(); setOpen(false); }}>
+                  <X className="mr-2 h-4 w-4" /> Limpar seleção
+                </CommandItem>
+              )}
+              {items.map((i: any) => (
+                <CommandItem
+                  key={i.id}
+                  value={`${i.code} ${i.description} ${i.supplier ?? ""}`}
+                  onSelect={() => { onPick(i.id); setOpen(false); }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === i.id ? "opacity-100" : "opacity-0")} />
+                  <span className="font-mono text-xs mr-2">{i.code}</span>
+                  <span className="truncate">{i.description}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
