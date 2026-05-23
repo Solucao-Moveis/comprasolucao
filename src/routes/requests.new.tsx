@@ -27,12 +27,11 @@ type ItemRow = {
   description: string;
   quantity: string;
   unit: string;
-  expected_price: string;
 };
 
 const newRow = (): ItemRow => ({
   uid: Math.random().toString(36).slice(2),
-  item_id: "", description: "", quantity: "", unit: "", expected_price: "",
+  item_id: "", description: "", quantity: "", unit: "",
 });
 
 function NewRequest() {
