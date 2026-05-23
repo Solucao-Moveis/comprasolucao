@@ -304,34 +304,92 @@ function RequestDetail() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-2 space-y-5">
-          {reqItems && reqItems.length > 0 ? (
-            <Section title={`Itens (${reqItems.length})`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-xs uppercase text-muted-foreground">
-                    <tr className="border-b">
-                      <th className="py-2 text-left font-medium">#</th>
-                      <th className="py-2 text-left font-medium">Código</th>
-                      <th className="py-2 text-left font-medium">Descrição</th>
-                      <th className="py-2 text-right font-medium">Qtd</th>
-                      <th className="py-2 text-left font-medium">Un</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reqItems.map((it: any, idx: number) => (
-                      <tr key={it.id} className="border-b last:border-0">
-                        <td className="py-2 text-muted-foreground">{idx + 1}</td>
-                        <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
-                        <td className="py-2">{it.description}</td>
-                        <td className="py-2 text-right">{Number(it.quantity).toLocaleString("pt-BR")}</td>
-                        <td className="py-2">{it.unit}</td>
+          {reqItems && reqItems.length > 0 ? (() => {
+            const editable = canPurchase && !req.purchased_at;
+            const rowsTotals = reqItems.map((it: any) => {
+              const raw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
+              const parsedPrice = parseFloat(String(raw).replace(",", "."));
+              const price = isNaN(parsedPrice) ? null : parsedPrice;
+              const qty = Number(it.quantity);
+              const total = price != null ? price * qty : null;
+              const expected = it.expected_price != null ? Number(it.expected_price) : null;
+              const save = price != null && expected != null ? (expected - price) * qty : null;
+              return { it, price, total, expected, save };
+            });
+            const grandTotal = rowsTotals.reduce((s, r) => s + (r.total ?? 0), 0);
+            const grandSave = rowsTotals.reduce((s, r) => s + (r.save ?? 0), 0);
+            const hasSavings = rowsTotals.some((r) => r.save != null);
+            return (
+              <Section title={`Itens (${reqItems.length})`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="text-xs uppercase text-muted-foreground">
+                      <tr className="border-b">
+                        <th className="py-2 text-left font-medium">#</th>
+                        <th className="py-2 text-left font-medium">Código</th>
+                        <th className="py-2 text-left font-medium">Descrição</th>
+                        <th className="py-2 text-right font-medium">Qtd</th>
+                        <th className="py-2 text-left font-medium">Un</th>
+                        <th className="py-2 text-right font-medium">Preço esp.</th>
+                        <th className="py-2 text-right font-medium">Preço un.</th>
+                        <th className="py-2 text-right font-medium">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Section>
-          ) : (
+                    </thead>
+                    <tbody>
+                      {rowsTotals.map(({ it, price, total, expected, save }, idx) => (
+                        <tr key={it.id} className="border-b last:border-0">
+                          <td className="py-2 text-muted-foreground">{idx + 1}</td>
+                          <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
+                          <td className="py-2">{it.description}</td>
+                          <td className="py-2 text-right">{Number(it.quantity).toLocaleString("pt-BR")}</td>
+                          <td className="py-2">{it.unit}</td>
+                          <td className="py-2 text-right text-muted-foreground">
+                            {expected != null ? `R$ ${expected.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                          </td>
+                          <td className="py-2 text-right">
+                            {editable ? (
+                              <Input
+                                type="number" step="0.01" min="0" placeholder="0,00"
+                                value={unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "")}
+                                onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
+                                className="h-8 w-28 ml-auto text-right"
+                              />
+                            ) : (
+                              price != null ? `R$ ${price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"
+                            )}
+                            {save != null && save !== 0 && !editable && (
+                              <div className={`text-xs ${save > 0 ? "text-success" : "text-destructive"}`}>
+                                {save > 0 ? "Economia" : "Acima"}: R$ {Math.abs(save).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2 text-right font-medium">
+                            {total != null ? `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t">
+                        <td colSpan={7} className="py-2 text-right text-sm font-semibold">Total da compra</td>
+                        <td className="py-2 text-right text-sm font-bold">
+                          R$ {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                      {hasSavings && (
+                        <tr>
+                          <td colSpan={7} className="py-1 text-right text-xs text-muted-foreground">Economia total</td>
+                          <td className={`py-1 text-right text-xs font-semibold ${grandSave >= 0 ? "text-success" : "text-destructive"}`}>
+                            R$ {grandSave.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      )}
+                    </tfoot>
+                  </table>
+                </div>
+              </Section>
+            );
+          })() : (
             <>
               <Section title="Descrição"><p className="whitespace-pre-wrap text-sm">{req.description}</p></Section>
               <div className="grid gap-4 md:grid-cols-3">
