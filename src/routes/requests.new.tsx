@@ -124,8 +124,8 @@ function NewRequest() {
     const validRows = rows.map((r) => ({
       ...r,
       quantity: parseFloat(r.quantity.replace(",", ".")),
-      expected_price: r.expected_price ? parseFloat(r.expected_price.replace(",", ".")) : null,
-    })).filter((r) => r.description.trim() && !isNaN(r.quantity) && r.quantity > 0 && r.unit.trim());
+    })).filter((r) => r.item_id && r.description.trim() && !isNaN(r.quantity) && r.quantity > 0 && r.unit.trim());
+
 
     if (validRows.length === 0) return toast.error("Adicione ao menos um item válido");
 
