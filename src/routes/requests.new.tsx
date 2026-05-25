@@ -263,7 +263,11 @@ function NewRequest() {
                     </div>
                     <div className="space-y-2">
                       <Label>Descrição</Label>
-                      <Input value={row.description} disabled placeholder="Selecione o código" />
+                      <Input
+                        value={row.description}
+                        placeholder="Selecione o código ou digite a descrição"
+                        onChange={(e) => updateRow(row.uid, { description: e.target.value })}
+                      />
                     </div>
                   </div>
 
