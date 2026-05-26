@@ -34,6 +34,22 @@ function Dashboard() {
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("id,code,description,avg_interval_days,last_purchased_at,avg_price")).data ?? [],
   });
+  const { data: allRequestItems } = useQuery({
+    queryKey: ["dashboard-request-items"],
+    queryFn: async () => (await supabase.from("request_items").select("request_id,quantity,unit_price")).data ?? [],
+  });
+  const itemsTotalByRequest = useMemo(() => {
+    const m = new Map<string, number>();
+    (allRequestItems ?? []).forEach((it: any) => {
+      if (it.unit_price == null) return;
+      m.set(it.request_id, (m.get(it.request_id) || 0) + Number(it.unit_price) * Number(it.quantity));
+    });
+    return m;
+  }, [allRequestItems]);
+  const totalFor = (r: any) => {
+    const t = itemsTotalByRequest.get(r.id);
+    return t != null && t > 0 ? t : Number(r.purchase_amount || 0);
+  };
   const { data: purchases } = useQuery({
     enabled: isBuyer,
     queryKey: ["buyer-savings"],
