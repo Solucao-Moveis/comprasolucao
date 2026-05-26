@@ -383,7 +383,7 @@ function Dashboard() {
                     <td className="px-2 py-2 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                     <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
                     <td className="px-2 py-2 text-right">{Number(r.quantity).toLocaleString("pt-BR")} {r.unit}</td>
-                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(Number(r.purchase_amount))}</td>
+                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(purchaseTotal(r))}</td>
                     <td className="px-2 py-2 text-xs text-muted-foreground">{new Date(r.purchased_at).toLocaleDateString("pt-BR")}</td>
                   </tr>
                 ))}
