@@ -177,7 +177,7 @@ function Dashboard() {
     ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
       acc[name] = acc[name] ?? { name, total: 0 };
-      acc[name].total += Number(r.purchase_amount);
+      acc[name].total += totalFor(r);
       return acc;
     }, {})
   );
@@ -186,7 +186,7 @@ function Dashboard() {
   const ccDetailRows = ccDetail
     ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
     : [];
-  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + Number(r.purchase_amount || 0), 0);
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + totalFor(r), 0);
   const fmtMonth = (k: string) => {
     const [y, m] = k.split("-");
     return `${m}/${y}`;
