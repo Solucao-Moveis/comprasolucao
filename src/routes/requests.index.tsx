@@ -108,17 +108,70 @@ function RequestsList() {
     const ids = Array.from(selected);
     if (ids.length === 0) return toast.error("Selecione ao menos uma solicitação");
     const rows = (requests ?? []).filter((r: any) => selected.has(r.id));
-    const { data: itemsData } = await supabase
+    const { data: enrichData } = await supabase
       .from("purchase_requests")
-      .select("id,items(code,description),cost_centers(code,name)")
+      .select("id,cost_centers(code,name)")
       .in("id", ids);
-    const enrich = new Map((itemsData ?? []).map((x: any) => [x.id, x]));
+    const enrich = new Map((enrichData ?? []).map((x: any) => [x.id, x]));
+
+    const { data: riData } = await supabase
+      .from("request_items")
+      .select("request_id,item_id,description,quantity,unit,position,items(code,description)")
+      .in("request_id", ids)
+      .order("position");
+    const itemsByReq = new Map<string, any[]>();
+    (riData ?? []).forEach((it: any) => {
+      const arr = itemsByReq.get(it.request_id) ?? [];
+      arr.push(it);
+      itemsByReq.set(it.request_id, arr);
+    });
+
+    // Consolidate items across selected requests (sum by item_id when present, else by code+description+unit)
+    const agg = new Map<string, { code: string; description: string; unit: string; quantity: number; requests: Set<string> }>();
+    (riData ?? []).forEach((it: any) => {
+      const code = it.items?.code ?? "";
+      const desc = it.items?.description ?? it.description ?? "";
+      const unit = it.unit ?? "";
+      const key = it.item_id ? `id:${it.item_id}|${unit}` : `txt:${code}|${desc}|${unit}`;
+      const cur = agg.get(key) ?? { code, description: desc, unit, quantity: 0, requests: new Set<string>() };
+      cur.quantity += Number(it.quantity) || 0;
+      cur.requests.add(it.request_id);
+      agg.set(key, cur);
+    });
+    const consolidated = Array.from(agg.values()).sort((a, b) => (a.code || a.description).localeCompare(b.code || b.description));
+
     const fmtBRL = (v: any) => v == null ? "—" : `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+    const fmtNum = (v: any) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 4 });
     const esc = (s: any) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
     const total = rows.reduce((s: number, r: any) => s + Number(r.purchase_amount || 0), 0);
+
+    const reqRowsHtml = rows.flatMap((r: any) => {
+      const its = itemsByReq.get(r.id) ?? [];
+      if (its.length === 0) {
+        return [`<tr>
+          <td>${esc(r.number)}</td><td>${esc(r.status)}</td>
+          <td>${esc(r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—")}</td>
+          <td>—</td><td>${esc(r.description)}</td>
+          <td>${esc(r.quantity)} ${esc(r.unit)}</td>
+          <td>${fmtBRL(r.purchase_amount)}</td>
+          <td>${esc(format(new Date(r.created_at), "dd/MM/yyyy"))}</td>
+        </tr>`];
+      }
+      return its.map((it: any, idx: number) => `<tr>
+        <td>${idx === 0 ? esc(r.number) : ""}</td>
+        <td>${idx === 0 ? esc(r.status) : ""}</td>
+        <td>${idx === 0 ? esc(r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—") : ""}</td>
+        <td>${esc(it.items?.code ?? "—")}</td>
+        <td>${esc(it.items?.description ?? it.description)}</td>
+        <td>${fmtNum(it.quantity)} ${esc(it.unit)}</td>
+        <td>${idx === 0 ? fmtBRL(r.purchase_amount) : ""}</td>
+        <td>${idx === 0 ? esc(format(new Date(r.created_at), "dd/MM/yyyy")) : ""}</td>
+      </tr>`);
+    }).join("");
+
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Relatório de Solicitações</title>
 <style>
-body{font-family:system-ui,sans-serif;color:#111;padding:24px;max-width:900px;margin:0 auto}
+body{font-family:system-ui,sans-serif;color:#111;padding:24px;max-width:960px;margin:0 auto}
 h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:18px 0 6px;color:#444}
 .meta{font-size:12px;color:#666;margin-bottom:16px}
 .card{border:1px solid #ddd;border-radius:8px;padding:14px;margin-bottom:12px;page-break-inside:avoid}
@@ -127,43 +180,51 @@ h1{font-size:20px;margin:0 0 4px}h2{font-size:14px;margin:18px 0 6px;color:#444}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;background:#eef;border:1px solid #cce;margin-right:6px}
 .total{margin-top:18px;font-size:14px;font-weight:600;text-align:right}
 table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
-th,td{border:1px solid #ddd;padding:6px;text-align:left}
+th,td{border:1px solid #ddd;padding:6px;text-align:left;vertical-align:top}
 th{background:#f5f5f7}
+ul.items{margin:4px 0 0 18px;padding:0;font-size:12px}
 @media print{.no-print{display:none}}
 </style></head><body>
 <div class="no-print" style="margin-bottom:12px"><button onclick="window.print()">Imprimir / Salvar PDF</button></div>
 <h1>Relatório de Solicitações de Compra</h1>
 <div class="meta">Gerado em ${new Date().toLocaleString("pt-BR")} · ${rows.length} solicitação(ões)</div>
+
+<h2>Itens consolidados</h2>
 <table>
-<thead><tr><th>Número</th><th>Status</th><th>Setor</th><th>Item</th><th>Descrição</th><th>Qtd.</th><th>Valor</th><th>Data</th></tr></thead>
+<thead><tr><th>Código</th><th>Descrição</th><th>Qtd. total</th><th>Unidade</th><th>Solicitações</th></tr></thead>
 <tbody>
-${rows.map((r: any) => {
-  const ex = enrich.get(r.id) as any;
-  return `<tr>
-  <td>${esc(r.number)}</td>
-  <td>${esc(r.status)}</td>
-  <td>${esc(r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—")}</td>
-  <td>${esc(ex?.items?.code ?? "—")}</td>
-  <td>${esc(ex?.items?.description ?? r.description)}</td>
-  <td>${esc(r.quantity)} ${esc(r.unit)}</td>
-  <td>${fmtBRL(r.purchase_amount)}</td>
-  <td>${esc(format(new Date(r.created_at), "dd/MM/yyyy"))}</td>
-</tr>`;
-}).join("")}
+${consolidated.map((c) => `<tr>
+  <td>${esc(c.code || "—")}</td>
+  <td>${esc(c.description)}</td>
+  <td>${fmtNum(c.quantity)}</td>
+  <td>${esc(c.unit)}</td>
+  <td>${c.requests.size}</td>
+</tr>`).join("")}
+</tbody>
+</table>
+
+<h2>Solicitações</h2>
+<table>
+<thead><tr><th>Número</th><th>Status</th><th>Setor</th><th>Cód.</th><th>Descrição</th><th>Qtd.</th><th>Valor</th><th>Data</th></tr></thead>
+<tbody>
+${reqRowsHtml}
 </tbody>
 </table>
 <div class="total">Total comprado: ${fmtBRL(total)}</div>
+
 <h2>Detalhamento</h2>
 ${rows.map((r: any) => {
   const ex = enrich.get(r.id) as any;
+  const its = itemsByReq.get(r.id) ?? [];
   return `<div class="card">
   <div class="row"><span><span class="tag">${esc(r.number)}</span><span class="tag">${esc(r.status)}</span><span class="tag">${esc(r.priority)}</span></span><span class="label">${esc(format(new Date(r.created_at), "dd/MM/yyyy"))}</span></div>
   <div class="row"><span class="label">Solicitante</span><span class="val">${esc(r.profiles?.full_name ?? r.profiles?.email ?? "—")}</span></div>
   <div class="row"><span class="label">Setor</span><span class="val">${esc(r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—")}</span></div>
   <div class="row"><span class="label">Centro de custo</span><span class="val">${esc(ex?.cost_centers ? `${ex.cost_centers.code} — ${ex.cost_centers.name}` : "—")}</span></div>
-  <div class="row"><span class="label">Item</span><span class="val">${esc(ex?.items ? `${ex.items.code} — ${ex.items.description}` : "—")}</span></div>
-  <div class="row"><span class="label">Descrição</span><span class="val">${esc(r.description)}</span></div>
-  <div class="row"><span class="label">Quantidade</span><span class="val">${esc(r.quantity)} ${esc(r.unit)}</span></div>
+  <div class="row"><span class="label">Itens</span><span class="val">${its.length || 1}</span></div>
+  ${its.length > 0
+    ? `<ul class="items">${its.map((it: any) => `<li>${esc(it.items?.code ?? "—")} — ${esc(it.items?.description ?? it.description)} · ${fmtNum(it.quantity)} ${esc(it.unit)}</li>`).join("")}</ul>`
+    : `<div class="row"><span class="label">Descrição</span><span class="val">${esc(r.description)} (${esc(r.quantity)} ${esc(r.unit)})</span></div>`}
   <div class="row"><span class="label">Necessário em</span><span class="val">${esc(r.needed_by)}</span></div>
   <div class="row"><span class="label">Justificativa</span><span class="val">${esc(r.justification)}</span></div>
   <div class="row"><span class="label">Valor da compra</span><span class="val">${fmtBRL(r.purchase_amount)}</span></div>
