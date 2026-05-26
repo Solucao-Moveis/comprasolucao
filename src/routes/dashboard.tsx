@@ -157,7 +157,7 @@ function Dashboard() {
     [purchasesList, ccMonth]
   );
 
-  const purchaseTotal = (r: any) => Number(r.purchase_amount || 0) * Number(r.quantity || 0);
+  const purchaseTotal = (r: any) => Number(r.purchase_amount || 0);
   const byCostCenter = Object.values(
     ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
