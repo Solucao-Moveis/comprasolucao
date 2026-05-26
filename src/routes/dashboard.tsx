@@ -48,8 +48,7 @@ function Dashboard() {
   }, [allRequestItems]);
   const totalFor = (r: any) => {
     const t = itemsTotalByRequest.get(r.id);
-    if (t != null && t > 0) return t;
-    return Number(r.purchase_amount || 0) * Number(r.quantity || 0);
+    return t != null && t > 0 ? t : Number(r.purchase_amount || 0);
   };
   const { data: purchases } = useQuery({
     enabled: isBuyer,
