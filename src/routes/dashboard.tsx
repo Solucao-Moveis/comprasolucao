@@ -150,8 +150,8 @@ function Dashboard() {
   const [ccDetail, setCcDetail] = useState<string | null>(null);
 
   const purchasesList = useMemo(
-    () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
-    [list]
+    () => list.filter((r: any) => r.purchased_at && totalFor(r) > 0),
+    [list, itemsTotalByRequest]
   );
 
   const ccMonthOptions = useMemo(() => {
