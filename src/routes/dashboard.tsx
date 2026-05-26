@@ -34,22 +34,6 @@ function Dashboard() {
     queryKey: ["items"],
     queryFn: async () => (await supabase.from("items").select("id,code,description,avg_interval_days,last_purchased_at,avg_price")).data ?? [],
   });
-  const { data: allRequestItems } = useQuery({
-    queryKey: ["dashboard-request-items"],
-    queryFn: async () => (await supabase.from("request_items").select("request_id,quantity,unit_price")).data ?? [],
-  });
-  const itemsTotalByRequest = useMemo(() => {
-    const m = new Map<string, number>();
-    (allRequestItems ?? []).forEach((it: any) => {
-      if (it.unit_price == null) return;
-      m.set(it.request_id, (m.get(it.request_id) || 0) + Number(it.unit_price) * Number(it.quantity));
-    });
-    return m;
-  }, [allRequestItems]);
-  const totalFor = (r: any) => {
-    const t = itemsTotalByRequest.get(r.id);
-    return t != null && t > 0 ? t : Number(r.purchase_amount || 0);
-  };
   const { data: purchases } = useQuery({
     enabled: isBuyer,
     queryKey: ["buyer-savings"],
@@ -150,8 +134,8 @@ function Dashboard() {
   const [ccDetail, setCcDetail] = useState<string | null>(null);
 
   const purchasesList = useMemo(
-    () => list.filter((r: any) => r.purchased_at && totalFor(r) > 0),
-    [list, itemsTotalByRequest]
+    () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
+    [list]
   );
 
   const ccMonthOptions = useMemo(() => {
@@ -177,7 +161,7 @@ function Dashboard() {
     ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
       acc[name] = acc[name] ?? { name, total: 0 };
-      acc[name].total += totalFor(r);
+      acc[name].total += Number(r.purchase_amount);
       return acc;
     }, {})
   );
@@ -186,7 +170,7 @@ function Dashboard() {
   const ccDetailRows = ccDetail
     ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
     : [];
-  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + totalFor(r), 0);
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + Number(r.purchase_amount || 0), 0);
   const fmtMonth = (k: string) => {
     const [y, m] = k.split("-");
     return `${m}/${y}`;
@@ -398,7 +382,7 @@ function Dashboard() {
                     <td className="px-2 py-2 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                     <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
                     <td className="px-2 py-2 text-right">{Number(r.quantity).toLocaleString("pt-BR")} {r.unit}</td>
-                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(totalFor(r))}</td>
+                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(Number(r.purchase_amount))}</td>
                     <td className="px-2 py-2 text-xs text-muted-foreground">{new Date(r.purchased_at).toLocaleDateString("pt-BR")}</td>
                   </tr>
                 ))}
