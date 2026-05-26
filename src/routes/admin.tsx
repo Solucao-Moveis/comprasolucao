@@ -14,7 +14,7 @@ export const Route = createFileRoute("/admin")({
   component: () => <AppLayout><AdminPage /></AppLayout>,
 });
 
-const ROLES = ["solicitante", "aprovador", "comprador", "admin"] as const;
+const ROLES = ["solicitante", "aprovador", "comprador", "admin", "visualizador"] as const;
 
 function AdminPage() {
   const { roles, loading, rolesLoading } = useAuth();
