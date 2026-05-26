@@ -157,11 +157,12 @@ function Dashboard() {
     [purchasesList, ccMonth]
   );
 
+  const purchaseTotal = (r: any) => Number(r.purchase_amount || 0) * Number(r.quantity || 0);
   const byCostCenter = Object.values(
     ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
       acc[name] = acc[name] ?? { name, total: 0 };
-      acc[name].total += Number(r.purchase_amount);
+      acc[name].total += purchaseTotal(r);
       return acc;
     }, {})
   );
@@ -170,7 +171,7 @@ function Dashboard() {
   const ccDetailRows = ccDetail
     ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
     : [];
-  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + Number(r.purchase_amount || 0), 0);
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + purchaseTotal(r), 0);
   const fmtMonth = (k: string) => {
     const [y, m] = k.split("-");
     return `${m}/${y}`;
@@ -382,7 +383,7 @@ function Dashboard() {
                     <td className="px-2 py-2 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                     <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
                     <td className="px-2 py-2 text-right">{Number(r.quantity).toLocaleString("pt-BR")} {r.unit}</td>
-                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(Number(r.purchase_amount))}</td>
+                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(purchaseTotal(r))}</td>
                     <td className="px-2 py-2 text-xs text-muted-foreground">{new Date(r.purchased_at).toLocaleDateString("pt-BR")}</td>
                   </tr>
                 ))}
