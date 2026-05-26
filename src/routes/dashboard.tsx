@@ -171,7 +171,7 @@ function Dashboard() {
   const ccDetailRows = ccDetail
     ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
     : [];
-  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + Number(r.purchase_amount || 0), 0);
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + purchaseTotal(r), 0);
   const fmtMonth = (k: string) => {
     const [y, m] = k.split("-");
     return `${m}/${y}`;
