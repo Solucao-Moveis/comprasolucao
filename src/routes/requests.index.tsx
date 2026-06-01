@@ -325,6 +325,7 @@ ${rows.map((r: any) => {
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">{format(new Date(r.created_at), "dd/MM/yyyy")}</td>
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{r.description}</td>
                   <td className="px-4 py-3">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
