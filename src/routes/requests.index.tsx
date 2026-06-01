@@ -301,6 +301,7 @@ ${rows.map((r: any) => {
                   <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAll} aria-label="Selecionar todas" />
                 </th>
                 <th className="px-4 py-3">Número</th>
+                <th className="px-4 py-3">Abertura</th>
                 <th className="px-4 py-3">Item</th>
                 <th className="px-4 py-3">Descrição</th>
                 <th className="px-4 py-3">Setor</th>
@@ -312,7 +313,7 @@ ${rows.map((r: any) => {
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
+                <tr><td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">Nenhuma solicitação encontrada</td></tr>
               )}
               {filtered.map((r: any) => {
                 const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
