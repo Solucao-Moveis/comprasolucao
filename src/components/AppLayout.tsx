@@ -78,9 +78,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
           >
             <Home className="h-4 w-4" /> Voltar ao ERP
           </a>
-          <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => signOut()}>
-            <LogOut className="mr-2 h-4 w-4" /> Sair
-          </Button>
         </div>
       </aside>
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3 md:hidden">
@@ -93,7 +90,6 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <Home className="h-4 w-4" />
           </a>
           <NotificationsBell />
-          <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
         </div>
       </header>
       <nav className="sticky top-[57px] z-10 flex gap-1 overflow-x-auto border-b bg-background px-2 py-2 md:hidden">
