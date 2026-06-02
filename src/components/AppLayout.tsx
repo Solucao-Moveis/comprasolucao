@@ -1,10 +1,13 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, FileText, Plus, LogOut, CheckSquare, Settings, Package } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, LogOut, CheckSquare, Settings, Package, Home } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import logo from "@/assets/logo.png";
+
+// SMERP: hub central (para o botão "Voltar ao ERP")
+const ERP_URL = "https://solucaomoveis-erp.h5xdag.easypanel.host/";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { user, loading, signOut, roles } = useAuth();
@@ -69,6 +72,12 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <span className="truncate text-xs text-muted-foreground">{user.email}</span>
             <NotificationsBell />
           </div>
+          <a
+            href={ERP_URL}
+            className="mb-1 flex items-center gap-2 rounded-md px-3 py-2 text-sm text-sidebar-foreground hover:bg-sidebar-accent/50"
+          >
+            <Home className="h-4 w-4" /> Voltar ao ERP
+          </a>
           <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => signOut()}>
             <LogOut className="mr-2 h-4 w-4" /> Sair
           </Button>
@@ -80,6 +89,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
           <span className="font-semibold text-sm">Sistema de Compras</span>
         </div>
         <div className="flex items-center gap-1">
+          <a href={ERP_URL} aria-label="Voltar ao ERP" className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent">
+            <Home className="h-4 w-4" />
+          </a>
           <NotificationsBell />
           <Button variant="ghost" size="sm" onClick={() => signOut()}><LogOut className="h-4 w-4" /></Button>
         </div>

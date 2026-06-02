@@ -20,6 +20,8 @@ function createSupabaseAdminClient() {
   }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    // SMERP: schema 'compras' do banco unificado
+    db: { schema: 'compras' as any },
     auth: {
       storage: undefined,
       persistSession: false,

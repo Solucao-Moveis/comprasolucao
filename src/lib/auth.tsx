@@ -14,6 +14,25 @@ interface AuthCtx {
   refreshRoles: () => Promise<void>;
 }
 
+// SMERP SSO: se o ERP abriu este app com a sessão no hash (#smerp_sso&at=&rt=),
+// adota essa sessão e limpa a URL — assim a pessoa entra sem logar de novo.
+async function consumeSmerpSso() {
+  if (typeof window === "undefined") return;
+  const hash = window.location.hash;
+  if (!hash || hash.indexOf("smerp_sso") === -1) return;
+  const params = new URLSearchParams(hash.replace(/^#/, ""));
+  const access_token = params.get("at");
+  const refresh_token = params.get("rt");
+  if (access_token && refresh_token) {
+    try {
+      await supabase.auth.setSession({ access_token, refresh_token });
+    } catch (e) {
+      console.error("[SMERP SSO]", e);
+    }
+  }
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
 const Ctx = createContext<AuthCtx | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -39,12 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRolesLoading(false);
       }
     });
-    supabase.auth.getSession().then(({ data }) => {
+    (async () => {
+      await consumeSmerpSso();
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       if (data.session?.user) loadRoles(data.session.user.id);
       else setRolesLoading(false);
       setLoading(false);
-    });
+    })();
     return () => sub.subscription.unsubscribe();
   }, []);
 

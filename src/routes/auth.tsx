@@ -67,7 +67,8 @@ function AuthPage() {
       password: parsed.data.password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
-        data: { full_name: parsed.data.full_name },
+        // SMERP: 'app' diz ao trigger do banco que este cadastro é do sistema compras
+        data: { full_name: parsed.data.full_name, app: "compras" },
       },
     });
     setBusy(false);
