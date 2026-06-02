@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+.output
+.nitro
+.vinxi
+.tanstack
+.wrangler
+.git
+.dev.vars
+*.local
+*.log
+.vscode
+.idea
+.DS_Store
+Dockerfile
+.dockerignore
