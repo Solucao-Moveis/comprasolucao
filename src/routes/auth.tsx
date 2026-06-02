@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo-solucao-moveis.png";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,18 +76,10 @@ function AuthPage() {
   };
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center p-4"
-      style={{
-        backgroundColor: "#ffffff",
-        backgroundImage: `url(${logo}), url(${logo})`,
-        backgroundRepeat: "repeat, repeat",
-        backgroundSize: "160px 160px, 160px 160px",
-        backgroundPosition: "0 0, 80px 80px",
-      }}
-    >
-      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
-        <div className="mb-6 text-center">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-lg">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <img src={logo} alt="Solução Móveis" className="mb-3 h-14 w-auto object-contain" />
           <h1 className="text-2xl font-bold">Sistema de Compras</h1>
           <p className="text-sm text-muted-foreground">Solução Móveis</p>
         </div>
