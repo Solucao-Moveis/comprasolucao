@@ -1,1 +1,4 @@
 project_id = "wbxnaemipiqxtaledycl"
+
+[functions.export-smerp]
+verify_jwt = false
