@@ -16,9 +16,6 @@ export interface ScoreInputs {
   q2_prazo: boolean; // prazo
   q3_quantidade: boolean; // quantidade
   q4_conservacao: boolean; // conservação
-  days_late: number; // Q02: dias de atraso
-  pct_missing: number; // Q03: % faltante (0–100)
-  quality_issues: number; // Q04: nº de quesitos (embalagem, aparência, oxidação...)
 }
 
 export interface ScoreResult {
@@ -32,32 +29,20 @@ export interface ScoreResult {
   suggestedApproved: boolean;
 }
 
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
-
-/** Aplica as regras do P-04 e devolve a pontuação detalhada + classificação. */
+/**
+ * Pontuação fechada das 4 perguntas: Sim = peso cheio, Não = 0.
+ * As deduções graduadas dos "Critérios" (atraso, % faltante, quesitos) NÃO entram
+ * aqui — são apuradas posteriormente em outro processo. O comprador só dá o número.
+ */
 export function computeScore(i: ScoreInputs): ScoreResult {
-  // Q01 (40): Sim → 40 | Não → produto devolvido, 0 pontos
   const q1Points = i.q1_conforme ? 40 : 0;
-  const returned = !i.q1_conforme;
-
-  // Q02 (30): Não → −5 por dia de atraso, até o limite de 30
-  const q2Points = i.q2_prazo
-    ? 30
-    : clamp(30 - 5 * Math.max(0, Math.floor(i.days_late)), 0, 30);
-
-  // Q03 (10): Não → −1 a cada 10% faltante
-  const q3Points = i.q3_quantidade
-    ? 10
-    : clamp(10 - Math.floor(Math.max(0, i.pct_missing) / 10), 0, 10);
-
-  // Q04 (20): Não → −2 por quesito de conservação
-  const q4Points = i.q4_conservacao
-    ? 20
-    : clamp(20 - 2 * Math.max(0, Math.floor(i.quality_issues)), 0, 20);
+  const q2Points = i.q2_prazo ? 30 : 0;
+  const q3Points = i.q3_quantidade ? 10 : 0;
+  const q4Points = i.q4_conservacao ? 20 : 0;
 
   const total = q1Points + q2Points + q3Points + q4Points;
   const classification = classify(total);
-  // Aprovação sugerida (editável): não devolvido e fora da faixa Insuficiente.
+  const returned = !i.q1_conforme; // Q01 Não → produto devolvido
   const suggestedApproved = !returned && total >= 65;
 
   return { q1Points, q2Points, q3Points, q4Points, total, classification, returned, suggestedApproved };

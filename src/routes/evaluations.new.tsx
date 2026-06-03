@@ -50,9 +50,6 @@ function NewEvaluation() {
   const [q2, setQ2] = useState<boolean | null>(null);
   const [q3, setQ3] = useState<boolean | null>(null);
   const [q4, setQ4] = useState<boolean | null>(null);
-  const [daysLate, setDaysLate] = useState("");
-  const [pctMissing, setPctMissing] = useState("");
-  const [qualityIssues, setQualityIssues] = useState("");
 
   const [observation, setObservation] = useState("");
   const [approved, setApproved] = useState(true);
@@ -97,23 +94,14 @@ function NewEvaluation() {
     q2_prazo: !!q2,
     q3_quantidade: !!q3,
     q4_conservacao: !!q4,
-    days_late: parseInt(daysLate || "0", 10) || 0,
-    pct_missing: parseFloat((pctMissing || "0").replace(",", ".")) || 0,
-    quality_issues: parseInt(qualityIssues || "0", 10) || 0,
   };
   const allAnswered = q1 !== null && q2 !== null && q3 !== null && q4 !== null;
-  // todo "Não" (exceto Q01, que é devolução direta) precisa do detalhe que gradua a dedução
-  const pendingDetail =
-    (q2 === false && !(inputs.days_late > 0)) ||
-    (q3 === false && !(inputs.pct_missing > 0)) ||
-    (q4 === false && !(inputs.quality_issues > 0));
-  const complete = allAnswered && !pendingDetail;
-  const result = useMemo(() => computeScore(inputs), [q1, q2, q3, q4, daysLate, pctMissing, qualityIssues]); // eslint-disable-line react-hooks/exhaustive-deps
+  const result = useMemo(() => computeScore(inputs), [q1, q2, q3, q4]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // sugestão de aprovação acompanha o cálculo até o usuário mexer manualmente
   useEffect(() => {
-    if (!approvedTouched && complete) setApproved(result.suggestedApproved);
-  }, [result.suggestedApproved, approvedTouched, complete]);
+    if (!approvedTouched && allAnswered) setApproved(result.suggestedApproved);
+  }, [result.suggestedApproved, approvedTouched, allAnswered]);
 
   const conclude = async () => {
     if (!user) return;
@@ -121,7 +109,6 @@ function NewEvaluation() {
     if (!assinante.trim()) return toast.error("Informe o nome do assinante");
     if (!date) return toast.error("Informe a data");
     if (!allAnswered) return toast.error("Responda as 4 perguntas (Sim/Não)");
-    if (pendingDetail) return toast.error("Informe o detalhe (dias/% /quesitos) dos itens marcados como Não");
 
     setBusy(true);
     const { data: inserted, error } = await supabase
@@ -137,9 +124,6 @@ function NewEvaluation() {
         q2_prazo: !!q2,
         q3_quantidade: !!q3,
         q4_conservacao: !!q4,
-        days_late: inputs.days_late,
-        pct_missing: inputs.pct_missing,
-        quality_issues: inputs.quality_issues,
         total_points: result.total,
         classification: result.classification,
         returned: result.returned,
@@ -235,21 +219,9 @@ function NewEvaluation() {
         <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Questionário</h3>
         <div className="space-y-3">
           <QuestionRow num="01" label={QUESTIONS[0].label} weight={40} value={q1} onChange={setQ1} />
-          {q1 === false && (
-            <Hint danger icon><b>Pergunta 01 — Não:</b> o produto será devolvido. A avaliação ficará como "Não Aprovado".</Hint>
-          )}
           <QuestionRow num="02" label={QUESTIONS[1].label} weight={30} value={q2} onChange={setQ2} />
-          {q2 === false && (
-            <ExtraInput label="Dias de atraso" suffix="dia(s) · −5 pts/dia (máx. 30)" value={daysLate} onChange={setDaysLate} />
-          )}
           <QuestionRow num="03" label={QUESTIONS[2].label} weight={10} value={q3} onChange={setQ3} />
-          {q3 === false && (
-            <ExtraInput label="% faltante" suffix="% · −1 pt a cada 10%" value={pctMissing} onChange={setPctMissing} />
-          )}
           <QuestionRow num="04" label={QUESTIONS[3].label} weight={20} value={q4} onChange={setQ4} />
-          {q4 === false && (
-            <ExtraInput label="Nº de quesitos" suffix="(embalagem, aparência, oxidação...) · −2 pts cada" value={qualityIssues} onChange={setQualityIssues} />
-          )}
         </div>
       </Card>
 
@@ -258,19 +230,16 @@ function NewEvaluation() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Total de pontos</div>
-            <div className="text-3xl font-bold">{complete ? result.total : "—"}<span className="text-base font-normal text-muted-foreground"> / 100</span></div>
+            <div className="text-3xl font-bold">{allAnswered ? result.total : "—"}<span className="text-base font-normal text-muted-foreground"> / 100</span></div>
           </div>
-          {complete && (
+          {allAnswered && (
             <div className="flex flex-col items-end gap-1">
               <ClassificationBadge classification={result.classification} />
               <span className="text-xs text-muted-foreground">{CLASS_CONSULTA[result.classification]}</span>
             </div>
           )}
         </div>
-        {allAnswered && pendingDetail && (
-          <Hint icon>Informe o detalhe dos itens marcados como <b>Não</b> (dias de atraso / % faltante / nº de quesitos) para calcular a nota.</Hint>
-        )}
-        {result.returned && complete && (
+        {result.returned && allAnswered && (
           <Hint danger icon>Produto será <b>devolvido</b> (requisitos técnicos não conformes).</Hint>
         )}
         <div className="flex items-center justify-between rounded-lg border p-3">
@@ -288,7 +257,7 @@ function NewEvaluation() {
 
       <div className="flex justify-end gap-3">
         <Button variant="outline" onClick={() => navigate({ to: "/evaluations" })}>Cancelar</Button>
-        <Button onClick={conclude} disabled={busy || !complete}>
+        <Button onClick={conclude} disabled={busy || !allAnswered}>
           {busy ? "Concluindo..." : "Concluir avaliação"}
         </Button>
       </div>
@@ -314,16 +283,6 @@ function QuestionRow({ num, label, weight, value, onChange }: {
           className={cn(value === false && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
           onClick={() => onChange(false)}>Não</Button>
       </div>
-    </div>
-  );
-}
-
-function ExtraInput({ label, suffix, value, onChange }: { label: string; suffix: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-dashed bg-muted/10 p-3 pl-6">
-      <Label className="whitespace-nowrap text-sm">{label}</Label>
-      <Input type="number" min="0" step="1" value={value} onChange={(e) => onChange(e.target.value)} className="h-8 w-28" />
-      <span className="text-xs text-muted-foreground">{suffix}</span>
     </div>
   );
 }

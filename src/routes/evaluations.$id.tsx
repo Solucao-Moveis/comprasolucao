@@ -64,7 +64,6 @@ function EvaluationDetail() {
 
   const inputs: ScoreInputs = {
     q1_conforme: e.q1_conforme, q2_prazo: e.q2_prazo, q3_quantidade: e.q3_quantidade, q4_conservacao: e.q4_conservacao,
-    days_late: e.days_late, pct_missing: e.pct_missing, quality_issues: e.quality_issues,
   };
   const result = computeScore(inputs);
   const answers = [e.q1_conforme, e.q2_prazo, e.q3_quantidade, e.q4_conservacao];
@@ -189,9 +188,6 @@ function EvaluationDetail() {
             </tfoot>
           </table>
         </div>
-        {!e.q2_prazo && <p className="text-xs text-muted-foreground">Atraso informado: {e.days_late} dia(s).</p>}
-        {!e.q3_quantidade && <p className="text-xs text-muted-foreground">Faltante informado: {e.pct_missing}%.</p>}
-        {!e.q4_conservacao && <p className="text-xs text-muted-foreground">Quesitos de conservação: {e.quality_issues}.</p>}
       </Card>
 
       {e.observation && (

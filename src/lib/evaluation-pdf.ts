@@ -190,29 +190,6 @@ export async function generateEvaluationPdf(d: EvaluationPdfData): Promise<Blob>
     doc.text(title, X0 + 2, y + 4.2);
     y += bh;
   };
-  sectionBar("Critério de Avaliação");
-  const criterios = [
-    "A resposta SIM a todas as perguntas equivale a 100 pontos",
-    "NÃO para a pergunta 01, o produto será devolvido.",
-    "NÃO para a pergunta 02, perderá 5 pontos por dia de atraso até o limite de 30 pontos.",
-    "NÃO para a pergunta 03, perderá 1 ponto para cada 10% do produto faltante.",
-    "NÃO para a pergunta 04, perderá 2 pontos por quesitos como embalagem, aparência, oxidação, etc.",
-  ];
-  const numW = 8;
-  criterios.forEach((t, i) => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
-    const lines = doc.splitTextToSize(t, W - numW - 4) as string[];
-    const h = Math.max(6, lines.length * 3.7 + 2.5);
-    doc.rect(X0, y, W, h);
-    doc.line(X0 + numW, y, X0 + numW, y + h);
-    doc.setFont("helvetica", "bold");
-    doc.text(String(i + 1), X0 + numW / 2, y + 4.2, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.text(lines, X0 + numW + 2, y + 4);
-    y += h;
-  });
-
   // ---------------- Pontuação ----------------
   sectionBar("Pontuação");
   const xR1 = X0 + 40;
