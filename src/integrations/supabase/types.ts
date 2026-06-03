@@ -405,6 +405,107 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_evaluations: {
+        Row: {
+          approved: boolean
+          classification: Database["public"]["Enums"]["evaluation_class"]
+          created_at: string
+          days_late: number
+          evaluation_date: string
+          evaluator_id: string
+          evaluator_name: string
+          id: string
+          nf: string | null
+          number: string | null
+          observation: string | null
+          pct_missing: number
+          pdf_path: string | null
+          q1_conforme: boolean
+          q2_prazo: boolean
+          q3_quantidade: boolean
+          q4_conservacao: boolean
+          quality_issues: number
+          request_id: string | null
+          returned: boolean
+          supplier: string
+          total_points: number
+          updated_at: string
+        }
+        Insert: {
+          approved: boolean
+          classification: Database["public"]["Enums"]["evaluation_class"]
+          created_at?: string
+          days_late?: number
+          evaluation_date: string
+          evaluator_id: string
+          evaluator_name: string
+          id?: string
+          nf?: string | null
+          number?: string | null
+          observation?: string | null
+          pct_missing?: number
+          pdf_path?: string | null
+          q1_conforme: boolean
+          q2_prazo: boolean
+          q3_quantidade: boolean
+          q4_conservacao: boolean
+          quality_issues?: number
+          request_id?: string | null
+          returned?: boolean
+          supplier: string
+          total_points: number
+          updated_at?: string
+        }
+        Update: {
+          approved?: boolean
+          classification?: Database["public"]["Enums"]["evaluation_class"]
+          created_at?: string
+          days_late?: number
+          evaluation_date?: string
+          evaluator_id?: string
+          evaluator_name?: string
+          id?: string
+          nf?: string | null
+          number?: string | null
+          observation?: string | null
+          pct_missing?: number
+          pdf_path?: string | null
+          q1_conforme?: boolean
+          q2_prazo?: boolean
+          q3_quantidade?: boolean
+          q4_conservacao?: boolean
+          quality_issues?: number
+          request_id?: string | null
+          returned?: boolean
+          supplier?: string
+          total_points?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_evaluations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_sequences: {
+        Row: {
+          last_number: number
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          year: number
+        }
+        Update: {
+          last_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
       sectors: {
         Row: {
           approver_id: string | null
@@ -471,6 +572,7 @@ export type Database = {
         | "solicitante"
         | "comprador"
         | "visualizador"
+      evaluation_class: "otimo" | "bom" | "regular" | "insuficiente"
       request_priority: "baixa" | "media" | "alta"
       request_status:
         | "pendente"
@@ -613,6 +715,7 @@ export const Constants = {
         "comprador",
         "visualizador",
       ],
+      evaluation_class: ["otimo", "bom", "regular", "insuficiente"],
       request_priority: ["baixa", "media", "alta"],
       request_status: [
         "pendente",

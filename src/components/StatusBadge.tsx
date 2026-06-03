@@ -33,3 +33,19 @@ export function PriorityBadge({ priority }: { priority: keyof typeof prio }) {
     </span>
   );
 }
+
+const cls = {
+  otimo: "bg-success/15 text-success border-success/30",
+  bom: "bg-primary/15 text-primary border-primary/30",
+  regular: "bg-warning/15 text-warning border-warning/30",
+  insuficiente: "bg-destructive/15 text-destructive border-destructive/30",
+} as const;
+const clsLabel = { otimo: "Ótimo", bom: "Bom", regular: "Regular", insuficiente: "Insuficiente" };
+
+export function ClassificationBadge({ classification }: { classification: keyof typeof cls }) {
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", cls[classification])}>
+      {clsLabel[classification]}
+    </span>
+  );
+}

@@ -17,8 +17,11 @@ import { Route as ApprovalsRouteImport } from './routes/approvals'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RequestsIndexRouteImport } from './routes/requests.index'
+import { Route as EvaluationsIndexRouteImport } from './routes/evaluations.index'
 import { Route as RequestsNewRouteImport } from './routes/requests.new'
 import { Route as RequestsIdRouteImport } from './routes/requests.$id'
+import { Route as EvaluationsNewRouteImport } from './routes/evaluations.new'
+import { Route as EvaluationsIdRouteImport } from './routes/evaluations.$id'
 import { Route as RequestsIdIndexRouteImport } from './routes/requests.$id.index'
 import { Route as RequestsIdEditRouteImport } from './routes/requests.$id.edit'
 
@@ -62,6 +65,11 @@ const RequestsIndexRoute = RequestsIndexRouteImport.update({
   path: '/requests/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EvaluationsIndexRoute = EvaluationsIndexRouteImport.update({
+  id: '/evaluations/',
+  path: '/evaluations/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RequestsNewRoute = RequestsNewRouteImport.update({
   id: '/requests/new',
   path: '/requests/new',
@@ -70,6 +78,16 @@ const RequestsNewRoute = RequestsNewRouteImport.update({
 const RequestsIdRoute = RequestsIdRouteImport.update({
   id: '/requests/$id',
   path: '/requests/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvaluationsNewRoute = EvaluationsNewRouteImport.update({
+  id: '/evaluations/new',
+  path: '/evaluations/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EvaluationsIdRoute = EvaluationsIdRouteImport.update({
+  id: '/evaluations/$id',
+  path: '/evaluations/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RequestsIdIndexRoute = RequestsIdIndexRouteImport.update({
@@ -91,8 +109,11 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/evaluations/$id': typeof EvaluationsIdRoute
+  '/evaluations/new': typeof EvaluationsNewRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
+  '/evaluations/': typeof EvaluationsIndexRoute
   '/requests/': typeof RequestsIndexRoute
   '/requests/$id/edit': typeof RequestsIdEditRoute
   '/requests/$id/': typeof RequestsIdIndexRoute
@@ -105,7 +126,10 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/evaluations/$id': typeof EvaluationsIdRoute
+  '/evaluations/new': typeof EvaluationsNewRoute
   '/requests/new': typeof RequestsNewRoute
+  '/evaluations': typeof EvaluationsIndexRoute
   '/requests': typeof RequestsIndexRoute
   '/requests/$id/edit': typeof RequestsIdEditRoute
   '/requests/$id': typeof RequestsIdIndexRoute
@@ -119,8 +143,11 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/evaluations/$id': typeof EvaluationsIdRoute
+  '/evaluations/new': typeof EvaluationsNewRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
+  '/evaluations/': typeof EvaluationsIndexRoute
   '/requests/': typeof RequestsIndexRoute
   '/requests/$id/edit': typeof RequestsIdEditRoute
   '/requests/$id/': typeof RequestsIdIndexRoute
@@ -135,8 +162,11 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/items'
     | '/reset-password'
+    | '/evaluations/$id'
+    | '/evaluations/new'
     | '/requests/$id'
     | '/requests/new'
+    | '/evaluations/'
     | '/requests/'
     | '/requests/$id/edit'
     | '/requests/$id/'
@@ -149,7 +179,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/items'
     | '/reset-password'
+    | '/evaluations/$id'
+    | '/evaluations/new'
     | '/requests/new'
+    | '/evaluations'
     | '/requests'
     | '/requests/$id/edit'
     | '/requests/$id'
@@ -162,8 +195,11 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/items'
     | '/reset-password'
+    | '/evaluations/$id'
+    | '/evaluations/new'
     | '/requests/$id'
     | '/requests/new'
+    | '/evaluations/'
     | '/requests/'
     | '/requests/$id/edit'
     | '/requests/$id/'
@@ -177,8 +213,11 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ItemsRoute: typeof ItemsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  EvaluationsIdRoute: typeof EvaluationsIdRoute
+  EvaluationsNewRoute: typeof EvaluationsNewRoute
   RequestsIdRoute: typeof RequestsIdRouteWithChildren
   RequestsNewRoute: typeof RequestsNewRoute
+  EvaluationsIndexRoute: typeof EvaluationsIndexRoute
   RequestsIndexRoute: typeof RequestsIndexRoute
 }
 
@@ -240,6 +279,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RequestsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/evaluations/': {
+      id: '/evaluations/'
+      path: '/evaluations'
+      fullPath: '/evaluations/'
+      preLoaderRoute: typeof EvaluationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/requests/new': {
       id: '/requests/new'
       path: '/requests/new'
@@ -252,6 +298,20 @@ declare module '@tanstack/react-router' {
       path: '/requests/$id'
       fullPath: '/requests/$id'
       preLoaderRoute: typeof RequestsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evaluations/new': {
+      id: '/evaluations/new'
+      path: '/evaluations/new'
+      fullPath: '/evaluations/new'
+      preLoaderRoute: typeof EvaluationsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/evaluations/$id': {
+      id: '/evaluations/$id'
+      path: '/evaluations/$id'
+      fullPath: '/evaluations/$id'
+      preLoaderRoute: typeof EvaluationsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/requests/$id/': {
@@ -293,8 +353,11 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ItemsRoute: ItemsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  EvaluationsIdRoute: EvaluationsIdRoute,
+  EvaluationsNewRoute: EvaluationsNewRoute,
   RequestsIdRoute: RequestsIdRouteWithChildren,
   RequestsNewRoute: RequestsNewRoute,
+  EvaluationsIndexRoute: EvaluationsIndexRoute,
   RequestsIndexRoute: RequestsIndexRoute,
 }
 export const routeTree = rootRouteImport

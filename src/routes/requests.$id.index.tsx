@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { StatusBadge, PriorityBadge, ClassificationBadge } from "@/components/StatusBadge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban, ClipboardCheck, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id/")({
@@ -77,6 +77,17 @@ function RequestDetail() {
       const { data } = await supabase.from("request_items").select("*, items(code,description,supplier,avg_price)").eq("request_id", id).order("position");
       return data ?? [];
     },
+  });
+  const { data: evaluation } = useQuery({
+    queryKey: ["request-evaluation", id],
+    queryFn: async () =>
+      (await supabase
+        .from("supplier_evaluations")
+        .select("id,number,total_points,classification,approved,returned,evaluator_name,observation,created_at")
+        .eq("request_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()).data,
   });
 
   if (!req) return <div className="text-muted-foreground">Carregando...</div>;
@@ -299,6 +310,11 @@ function RequestDetail() {
         <div className="flex items-center gap-2">
           <PriorityBadge priority={req.priority} />
           <StatusBadge status={req.status} />
+          {evaluation && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/15 px-2.5 py-0.5 text-xs font-medium text-success">
+              <ClipboardCheck className="h-3.5 w-3.5" /> Avaliada
+            </span>
+          )}
         </div>
       </div>
 
@@ -478,6 +494,42 @@ function RequestDetail() {
             <Button onClick={finalize} disabled={busy} variant="outline">
               <PackageCheck className="mr-2 h-4 w-4" />Marcar como finalizada
             </Button>
+          )}
+        </Card>
+      )}
+
+      {(evaluation || (req.arrived_at && (roles.includes("comprador") || roles.includes("admin")))) && (
+        <Card className="p-6 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <ClipboardCheck className="h-4 w-4 text-primary" /> Avaliação do fornecedor
+            </h3>
+            {evaluation && (
+              <Button asChild size="sm" variant="outline">
+                <Link to="/evaluations/$id" params={{ id: evaluation.id }}>Ver avaliação <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+              </Button>
+            )}
+          </div>
+          {evaluation ? (
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="font-mono text-xs text-muted-foreground">{evaluation.number}</span>
+                <ClassificationBadge classification={evaluation.classification} />
+                <span className="text-sm font-semibold">{evaluation.total_points} <span className="font-normal text-muted-foreground">/ 100</span></span>
+                {evaluation.approved
+                  ? <span className="inline-flex items-center gap-1 text-success text-xs"><CheckCircle2 className="h-3.5 w-3.5" />Aprovado</span>
+                  : <span className="inline-flex items-center gap-1 text-destructive text-xs"><XCircle className="h-3.5 w-3.5" />Não aprovado</span>}
+              </div>
+              <p className="text-xs text-muted-foreground">Avaliado por {evaluation.evaluator_name}{evaluation.created_at ? ` em ${format(new Date(evaluation.created_at), "dd/MM/yyyy")}` : ""}.</p>
+              {evaluation.observation && <p className="whitespace-pre-wrap text-sm">{evaluation.observation}</p>}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">Material recebido. Avalie o fornecedor no ato da entrega (Procedimento P-04).</p>
+              <Button asChild size="sm">
+                <Link to="/evaluations/new" search={{ request: id }}>Avaliar fornecedor <ArrowRight className="ml-1 h-3.5 w-3.5" /></Link>
+              </Button>
+            </div>
           )}
         </Card>
       )}
