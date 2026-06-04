@@ -70,9 +70,11 @@ function RequestsList() {
   }, [requests, q, status, sector, priority, from]);
 
   const exportCSV = () => {
+    // Se houver itens marcados, exporta só os selecionados; senão, exporta tudo que está na lista.
+    const source = selected.size > 0 ? filtered.filter((r: any) => selected.has(r.id)) : filtered;
     const rows = [
       ["Número", "Status", "Prioridade", "Setor", "Solicitante", "Descrição", "Quantidade", "Unidade", "Data", "Necessário em"],
-      ...filtered.map((r: any) => [
+      ...source.map((r: any) => [
         r.number, r.status, r.priority, r.sectors?.name ?? "",
         r.profiles?.full_name ?? r.profiles?.email ?? "",
         r.description.replace(/[\n;,]/g, " "), r.quantity, r.unit,
@@ -250,7 +252,9 @@ ${rows.map((r: any) => {
           <Button variant="outline" onClick={generateReport} disabled={selected.size === 0}>
             <FileText className="mr-2 h-4 w-4" />Gerar relatório
           </Button>
-          <Button variant="outline" onClick={exportCSV}><Download className="mr-2 h-4 w-4" />Exportar</Button>
+          <Button variant="outline" onClick={exportCSV}>
+            <Download className="mr-2 h-4 w-4" />Exportar{selected.size > 0 ? ` (${selected.size})` : ""}
+          </Button>
           <Button asChild><Link to="/requests/new"><Plus className="mr-2 h-4 w-4" />Nova solicitação</Link></Button>
         </div>
       </div>
