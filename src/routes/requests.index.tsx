@@ -302,16 +302,16 @@ ${rows.map((r: any) => {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="w-10 px-3 py-3">
+                <th className="hidden w-10 px-3 py-3 md:table-cell">
                   <Checkbox checked={allVisibleSelected} onCheckedChange={toggleAll} aria-label="Selecionar todas" />
                 </th>
                 <th className="px-4 py-3">Número</th>
-                <th className="px-4 py-3">Abertura</th>
-                <th className="px-4 py-3">Item</th>
+                <th className="hidden px-4 py-3 md:table-cell">Abertura</th>
+                <th className="hidden px-4 py-3 md:table-cell">Item</th>
                 <th className="px-4 py-3">Descrição</th>
-                <th className="px-4 py-3">Setor</th>
-                <th className="px-4 py-3">Solicitante</th>
-                <th className="px-4 py-3">Prioridade</th>
+                <th className="hidden px-4 py-3 md:table-cell">Setor</th>
+                <th className="hidden px-4 py-3 md:table-cell">Solicitante</th>
+                <th className="hidden px-4 py-3 md:table-cell">Prioridade</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Ações</th>
               </tr>
@@ -324,18 +324,18 @@ ${rows.map((r: any) => {
                 const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
                 return (
                 <tr key={r.id} className="border-t hover:bg-muted/30">
-                  <td className="px-3 py-3">
+                  <td className="hidden px-3 py-3 md:table-cell">
                     <Checkbox checked={selected.has(r.id)} onCheckedChange={() => toggleOne(r.id)} aria-label={`Selecionar ${r.number}`} />
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">{format(new Date(r.created_at), "dd/MM/yyyy")}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{r.items?.code ?? "—"}</td>
+                  <td className="hidden px-4 py-3 whitespace-nowrap text-xs text-muted-foreground md:table-cell">{format(new Date(r.created_at), "dd/MM/yyyy")}</td>
+                  <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground md:table-cell">{r.items?.code ?? "—"}</td>
                   <td className="px-4 py-3 max-w-xs truncate">{r.description}</td>
-                  <td className="px-4 py-3">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
-                  <td className="px-4 py-3">{r.profiles?.full_name ?? r.profiles?.email}</td>
-                  <td className="px-4 py-3"><PriorityBadge priority={r.priority} /></td>
+                  <td className="hidden px-4 py-3 md:table-cell">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                  <td className="hidden px-4 py-3 md:table-cell">{r.profiles?.full_name ?? r.profiles?.email}</td>
+                  <td className="hidden px-4 py-3 md:table-cell"><PriorityBadge priority={r.priority} /></td>
                   <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
