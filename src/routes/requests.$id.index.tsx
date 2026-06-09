@@ -243,6 +243,14 @@ function RequestDetail() {
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado") && !req.arrived_at;
   const itemsFullyPurchased = !!reqItems && reqItems.length > 0 &&
     reqItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
+  // o que está preenchido na tabela completaria a solicitação? (define o rótulo do botão)
+  const purchaseWouldComplete = !!reqItems && reqItems.every((it: any) => {
+    const already = Number(it.purchased_quantity ?? 0);
+    const remaining = Math.max(Number(it.quantity) - already, 0);
+    const raw = buyQty[it.id];
+    const qtyNow = raw === undefined ? remaining : (parseFloat(String(raw).replace(",", ".")) || 0);
+    return already + qtyNow >= Number(it.quantity) - 1e-9;
+  });
   const canCancel = (req.requester_id === user?.id || roles.includes("admin")) &&
     (req.status === "pendente" || req.status === "aprovado" || req.status === "parcial" || req.status === "comprado");
 
@@ -547,7 +555,7 @@ function RequestDetail() {
                       Informe a quantidade comprada e o preço de cada item na tabela acima. Você pode registrar parte agora e o restante depois — a solicitação fica como <span className="font-medium">Parcial</span> até comprar tudo.
                     </p>
                     <Button onClick={registerPartial} disabled={busy} variant="outline">
-                      <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
+                      <ShoppingCart className="mr-2 h-4 w-4" />{purchaseWouldComplete ? "Registrar compra" : "Registrar compra parcial"}
                     </Button>
                   </div>
                 )
