@@ -271,6 +271,7 @@ ${rows.map((r: any) => {
               <SelectItem value="all">Todos status</SelectItem>
               <SelectItem value="pendente">Pendente</SelectItem>
               <SelectItem value="aprovado">Aprovado</SelectItem>
+              <SelectItem value="parcial">Parcial</SelectItem>
               <SelectItem value="negado">Negado</SelectItem>
               <SelectItem value="comprado">Comprado</SelectItem>
               <SelectItem value="finalizado">Finalizado</SelectItem>

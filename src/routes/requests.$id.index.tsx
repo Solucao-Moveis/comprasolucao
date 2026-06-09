@@ -31,6 +31,7 @@ function RequestDetail() {
   const [busy, setBusy] = useState(false);
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [unitPrices, setUnitPrices] = useState<Record<string, string>>({});
+  const [buyQty, setBuyQty] = useState<Record<string, string>>({});
 
 
   const { data: req } = useQuery({
@@ -78,6 +79,21 @@ function RequestDetail() {
       return data ?? [];
     },
   });
+  const { data: purchaseEntries } = useQuery({
+    queryKey: ["purchase_entries", id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("purchase_entries")
+        .select("*, request_items(description, unit)")
+        .eq("request_id", id)
+        .order("created_at", { ascending: false });
+      if (!data) return [];
+      const ids = Array.from(new Set(data.map((e: any) => e.created_by).filter(Boolean))) as string[];
+      const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
+      const map = new Map((profs ?? []).map((p) => [p.id, p]));
+      return data.map((e: any) => ({ ...e, profiles: map.get(e.created_by) }));
+    },
+  });
   const { data: evaluation } = useQuery({
     queryKey: ["request-evaluation", id],
     queryFn: async () =>
@@ -95,7 +111,7 @@ function RequestDetail() {
   const isApprover = req.sectors?.approver_id === user?.id || roles.includes("admin");
   const isOwner = req.requester_id === user?.id;
   const canDecide = isApprover && req.status === "pendente";
-  const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado");
+  const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado");
 
   const decide = async (newStatus: "aprovado" | "negado") => {
     setBusy(true);
@@ -139,34 +155,64 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["request", id] });
   };
 
-  const markPurchasedFromItems = async () => {
+  // Registra uma compra (total ou parcial) a partir dos itens: para cada item
+  // informa-se a quantidade comprada agora e o preço unitário. Cada lançamento
+  // vira um registro em purchase_entries e acumula em request_items.purchased_quantity.
+  const registerPartial = async () => {
     if (!reqItems || reqItems.length === 0) return toast.error("Sem itens");
-    const parsed = reqItems.map((it: any) => {
-      const raw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
-      const price = parseFloat(String(raw).replace(",", "."));
-      return { id: it.id, quantity: Number(it.quantity), price };
+    const rows = reqItems.map((it: any) => {
+      const already = Number(it.purchased_quantity ?? 0);
+      const remaining = Number(it.quantity) - already;
+      const qtyRaw = buyQty[it.id] ?? String(remaining);
+      const qty = parseFloat(String(qtyRaw).replace(",", "."));
+      const priceRaw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
+      const price = parseFloat(String(priceRaw).replace(",", "."));
+      return { it, already, remaining, qty, price };
     });
-    if (parsed.some((p) => isNaN(p.price) || p.price < 0)) {
-      return toast.error("Informe o preço unitário de todos os itens");
+    const buying = rows.filter((r) => !isNaN(r.qty) && r.qty > 0);
+    if (buying.length === 0) return toast.error("Informe a quantidade comprada de pelo menos um item");
+    for (const r of buying) {
+      if (r.qty > r.remaining + 1e-9) {
+        return toast.error(`"${r.it.description}": quantidade acima do pendente (${r.remaining} ${r.it.unit})`);
+      }
+      if (isNaN(r.price) || r.price < 0) {
+        return toast.error(`Informe o preço unitário de "${r.it.description}"`);
+      }
     }
-    const total = parsed.reduce((s, p) => s + p.price * p.quantity, 0);
     setBusy(true);
-    for (const p of parsed) {
+    const entries = buying.map((r) => ({
+      request_id: id, request_item_id: r.it.id,
+      quantity: r.qty, unit_price: r.price, created_by: user!.id,
+    }));
+    const { error: eErr } = await (supabase as any).from("purchase_entries").insert(entries);
+    if (eErr) { setBusy(false); return toast.error(eErr.message); }
+    for (const r of buying) {
       const { error } = await supabase.from("request_items")
-        .update({ unit_price: p.price } as any).eq("id", p.id);
+        .update({ purchased_quantity: r.already + r.qty, unit_price: r.price } as any)
+        .eq("id", r.it.id);
       if (error) { setBusy(false); return toast.error(error.message); }
     }
+    // recalcula estado da solicitação
+    const allFull = rows.every((r) => {
+      const bought = r.already + (buying.find((b) => b.it.id === r.it.id)?.qty ?? 0);
+      return bought >= Number(r.it.quantity) - 1e-9;
+    });
+    const addAmount = buying.reduce((s, r) => s + r.price * r.qty, 0);
+    const newAmount = Number(req.purchase_amount ?? 0) + addAmount;
     const { error } = await supabase.from("purchase_requests").update({
-      purchased_at: new Date().toISOString(),
-      purchase_amount: total,
-      status: "comprado",
+      purchased_at: req.purchased_at ?? new Date().toISOString(),
+      purchase_amount: newAmount,
+      status: allFull ? "comprado" : "parcial",
     }).eq("id", id);
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Compra registrada");
+    toast.success(allFull ? "Compra registrada (completa)" : "Compra parcial registrada");
     setUnitPrices({});
+    setBuyQty({});
     qc.invalidateQueries({ queryKey: ["request", id] });
     qc.invalidateQueries({ queryKey: ["request_items", id] });
+    qc.invalidateQueries({ queryKey: ["purchase_entries", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
   const markArrived = async () => {
@@ -194,9 +240,11 @@ function RequestDetail() {
 
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
-  const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "comprado") && !req.arrived_at;
+  const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado") && !req.arrived_at;
+  const itemsFullyPurchased = !!reqItems && reqItems.length > 0 &&
+    reqItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
   const canCancel = (req.requester_id === user?.id || roles.includes("admin")) &&
-    (req.status === "pendente" || req.status === "aprovado" || req.status === "comprado");
+    (req.status === "pendente" || req.status === "aprovado" || req.status === "parcial" || req.status === "comprado");
 
   const cancelRequest = async () => {
     setBusy(true);
@@ -321,16 +369,25 @@ function RequestDetail() {
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-2 space-y-5">
           {reqItems && reqItems.length > 0 ? (() => {
-            const editable = canPurchase && !req.purchased_at;
+            const fullyPurchased = reqItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
+            const editable = canPurchase && !fullyPurchased;
+            const anyPartial = reqItems.some((it: any) => Number(it.purchased_quantity ?? 0) > 0);
             const rowsTotals = reqItems.map((it: any) => {
+              const fullQty = Number(it.quantity);
+              const already = Number(it.purchased_quantity ?? 0);
+              const remaining = Math.max(fullQty - already, 0);
               const raw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
               const parsedPrice = parseFloat(String(raw).replace(",", "."));
               const price = isNaN(parsedPrice) ? null : parsedPrice;
-              const qty = Number(it.quantity);
-              const total = price != null ? price * qty : null;
+              const qtyNowRaw = buyQty[it.id] ?? (remaining > 0 ? String(remaining) : "");
+              const parsedQty = parseFloat(String(qtyNowRaw).replace(",", "."));
+              const qtyNow = isNaN(parsedQty) ? 0 : parsedQty;
+              // valor da linha: o que está comprando agora (modo edição) ou o que já foi comprado
+              const refQty = editable ? qtyNow : already;
+              const total = price != null ? price * refQty : null;
               const avg = it.items?.avg_price != null ? Number(it.items.avg_price) : null;
-              const save = price != null && avg != null && avg > 0 ? (avg - price) * qty : null;
-              return { it, price, total, avg, save };
+              const save = price != null && avg != null && avg > 0 ? (avg - price) * refQty : null;
+              return { it, fullQty, already, remaining, price, qtyNow, total, avg, save };
             });
             const grandTotal = rowsTotals.reduce((s, r) => s + (r.total ?? 0), 0);
             const grandSave = rowsTotals.reduce((s, r) => s + (r.save ?? 0), 0);
@@ -346,26 +403,47 @@ function RequestDetail() {
                         <th className="py-2 text-left font-medium">Descrição</th>
                         <th className="py-2 text-right font-medium">Qtd</th>
                         <th className="py-2 text-left font-medium">Un</th>
-                        <th className="py-2 text-right font-medium">Preço un.</th>
+                        <th className="py-2 text-right font-medium">Comprado</th>
+                        <th className="py-2 text-right font-medium">{editable ? "Comprar agora" : "Preço un."}</th>
                         <th className="py-2 text-right font-medium">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rowsTotals.map(({ it, price, total, avg, save }, idx) => (
+                      {rowsTotals.map(({ it, fullQty, already, remaining, price, total, avg, save }, idx) => (
                         <tr key={it.id} className="border-b last:border-0">
                           <td className="py-2 text-muted-foreground">{idx + 1}</td>
                           <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
                           <td className="py-2">{it.description}</td>
-                          <td className="py-2 text-right">{Number(it.quantity).toLocaleString("pt-BR")}</td>
+                          <td className="py-2 text-right">{fullQty.toLocaleString("pt-BR")}</td>
                           <td className="py-2">{it.unit}</td>
                           <td className="py-2 text-right">
+                            <span className={remaining <= 1e-9 ? "text-success font-medium" : ""}>
+                              {already.toLocaleString("pt-BR")}/{fullQty.toLocaleString("pt-BR")}
+                            </span>
+                            {editable && remaining > 0 && (
+                              <div className="text-xs text-muted-foreground">faltam {remaining.toLocaleString("pt-BR")}</div>
+                            )}
+                          </td>
+                          <td className="py-2 text-right">
                             {editable ? (
-                              <Input
-                                type="number" step="0.01" min="0" placeholder="0,00"
-                                value={unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "")}
-                                onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
-                                className="h-8 w-28 ml-auto text-right"
-                              />
+                              remaining > 0 ? (
+                                <div className="flex flex-col items-end gap-1">
+                                  <Input
+                                    type="number" step="0.01" min="0" max={remaining} placeholder={`Qtd (máx ${remaining})`}
+                                    value={buyQty[it.id] ?? String(remaining)}
+                                    onChange={(e) => setBuyQty((p) => ({ ...p, [it.id]: e.target.value }))}
+                                    className="h-8 w-28 text-right"
+                                  />
+                                  <Input
+                                    type="number" step="0.01" min="0" placeholder="Preço un."
+                                    value={unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "")}
+                                    onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
+                                    className="h-8 w-28 text-right"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-xs text-success">completo</span>
+                              )
                             ) : (
                               price != null ? `R$ ${price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"
                             )}
@@ -388,14 +466,22 @@ function RequestDetail() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t">
-                        <td colSpan={6} className="py-2 text-right text-sm font-semibold">Total da compra</td>
+                        <td colSpan={7} className="py-2 text-right text-sm font-semibold">{editable ? "Total desta compra" : "Total comprado"}</td>
                         <td className="py-2 text-right text-sm font-bold">
                           R$ {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
+                      {!editable && anyPartial && req.purchase_amount != null && (
+                        <tr>
+                          <td colSpan={7} className="py-1 text-right text-xs text-muted-foreground">Valor total já registrado</td>
+                          <td className="py-1 text-right text-xs font-semibold">
+                            R$ {Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      )}
                       {hasSavings && (
                         <tr>
-                          <td colSpan={6} className="py-1 text-right text-xs text-muted-foreground">Economia total (vs. preço médio)</td>
+                          <td colSpan={7} className="py-1 text-right text-xs text-muted-foreground">Economia {editable ? "desta compra" : "total"} (vs. preço médio)</td>
                           <td className={`py-1 text-right text-xs font-semibold ${grandSave >= 0 ? "text-success" : "text-destructive"}`}>
                             R$ {grandSave.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
@@ -454,15 +540,19 @@ function RequestDetail() {
           )}
           {canPurchase && (
             <div className="space-y-3">
-              {!req.purchased_at && (
-                reqItems && reqItems.length > 0 ? (
+              {reqItems && reqItems.length > 0 ? (
+                !itemsFullyPurchased && (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Informe o preço unitário de cada item na tabela acima e registre a compra.</p>
-                    <Button onClick={markPurchasedFromItems} disabled={busy} variant="outline">
+                    <p className="text-sm text-muted-foreground">
+                      Informe a quantidade comprada e o preço de cada item na tabela acima. Você pode registrar parte agora e o restante depois — a solicitação fica como <span className="font-medium">Parcial</span> até comprar tudo.
+                    </p>
+                    <Button onClick={registerPartial} disabled={busy} variant="outline">
                       <ShoppingCart className="mr-2 h-4 w-4" />Registrar compra
                     </Button>
                   </div>
-                ) : (
+                )
+              ) : (
+                !req.purchased_at && (
                   <div className="flex flex-wrap items-end gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="purchase_amount">Valor da compra (R$) *</Label>
@@ -495,6 +585,38 @@ function RequestDetail() {
               <PackageCheck className="mr-2 h-4 w-4" />Marcar como finalizada
             </Button>
           )}
+        </Card>
+      )}
+
+      {purchaseEntries && purchaseEntries.length > 0 && (
+        <Card className="p-6 space-y-3">
+          <h3 className="text-sm font-semibold">Compras registradas</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr className="border-b">
+                  <th className="py-2 text-left font-medium">Data</th>
+                  <th className="py-2 text-left font-medium">Item</th>
+                  <th className="py-2 text-right font-medium">Qtd</th>
+                  <th className="py-2 text-right font-medium">Preço un.</th>
+                  <th className="py-2 text-right font-medium">Total</th>
+                  <th className="py-2 text-left font-medium">Comprador</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchaseEntries.map((e: any) => (
+                  <tr key={e.id} className="border-b last:border-0">
+                    <td className="py-2 text-muted-foreground">{format(new Date(e.created_at), "dd/MM/yyyy HH:mm")}</td>
+                    <td className="py-2">{e.request_items?.description ?? "—"}</td>
+                    <td className="py-2 text-right">{Number(e.quantity).toLocaleString("pt-BR")} {e.request_items?.unit ?? ""}</td>
+                    <td className="py-2 text-right">R$ {Number(e.unit_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                    <td className="py-2 text-right font-medium">R$ {(Number(e.unit_price) * Number(e.quantity)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+                    <td className="py-2 text-muted-foreground">{e.profiles?.full_name ?? e.profiles?.email ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 

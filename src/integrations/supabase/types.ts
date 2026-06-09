@@ -577,6 +577,7 @@ export type Database = {
       request_status:
         | "pendente"
         | "aprovado"
+        | "parcial"
         | "comprado"
         | "negado"
         | "finalizado"
@@ -720,6 +721,7 @@ export const Constants = {
       request_status: [
         "pendente",
         "aprovado",
+        "parcial",
         "comprado",
         "negado",
         "finalizado",

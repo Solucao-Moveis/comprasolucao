@@ -3,13 +3,14 @@ import { cn } from "@/lib/utils";
 const map = {
   pendente: "bg-warning/15 text-warning border-warning/30",
   aprovado: "bg-success/15 text-success border-success/30",
+  parcial: "bg-amber-500/15 text-amber-600 border-amber-500/30",
   negado: "bg-destructive/15 text-destructive border-destructive/30",
   comprado: "bg-primary/15 text-primary border-primary/30",
   finalizado: "bg-info/15 text-info border-info/30",
   cancelado: "bg-muted text-muted-foreground border-border",
 } as const;
 
-const labels = { pendente: "Pendente", aprovado: "Aprovado", negado: "Negado", comprado: "Comprado", finalizado: "Finalizado", cancelado: "Cancelado" };
+const labels = { pendente: "Pendente", aprovado: "Aprovado", parcial: "Parcial", negado: "Negado", comprado: "Comprado", finalizado: "Finalizado", cancelado: "Cancelado" };
 
 export function StatusBadge({ status }: { status: keyof typeof map }) {
   return (
