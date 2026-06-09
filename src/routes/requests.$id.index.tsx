@@ -163,20 +163,27 @@ function RequestDetail() {
     const rows = reqItems.map((it: any) => {
       const already = Number(it.purchased_quantity ?? 0);
       const remaining = Number(it.quantity) - already;
-      const qtyRaw = buyQty[it.id] ?? String(remaining);
-      const qty = parseFloat(String(qtyRaw).replace(",", "."));
-      const priceRaw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
-      const price = parseFloat(String(priceRaw).replace(",", "."));
-      return { it, already, remaining, qty, price };
+      // preço só conta se foi digitado agora nesta tela
+      const priceRaw = unitPrices[it.id];
+      const hasPrice = priceRaw !== undefined && String(priceRaw).trim() !== "" && !isNaN(parseFloat(String(priceRaw).replace(",", ".")));
+      const price = hasPrice ? parseFloat(String(priceRaw).replace(",", ".")) : NaN;
+      // quantidade: usa o que foi digitado; se em branco, assume o que falta
+      const qtyTyped = buyQty[it.id] !== undefined && String(buyQty[it.id]).trim() !== "";
+      const qty = qtyTyped ? parseFloat(String(buyQty[it.id]).replace(",", ".")) : remaining;
+      return { it, already, remaining, qty, price, hasPrice, qtyTyped };
     });
-    const buying = rows.filter((r) => !isNaN(r.qty) && r.qty > 0);
-    if (buying.length === 0) return toast.error("Informe a quantidade comprada de pelo menos um item");
+    // um item só entra nesta compra se você informou o preço dele
+    const buying = rows.filter((r) => r.hasPrice && !isNaN(r.qty) && r.qty > 0);
+    // digitou quantidade mas esqueceu o preço? avisa
+    const missingPrice = rows.find((r) => r.qtyTyped && r.qty > 0 && !r.hasPrice);
+    if (missingPrice) return toast.error(`Informe o preço unitário de "${missingPrice.it.description}"`);
+    if (buying.length === 0) return toast.error("Informe o preço de pelo menos um item para registrar a compra");
     for (const r of buying) {
       if (r.qty > r.remaining + 1e-9) {
         return toast.error(`"${r.it.description}": quantidade acima do pendente (${r.remaining} ${r.it.unit})`);
       }
-      if (isNaN(r.price) || r.price < 0) {
-        return toast.error(`Informe o preço unitário de "${r.it.description}"`);
+      if (r.price < 0) {
+        return toast.error(`Preço inválido em "${r.it.description}"`);
       }
     }
     setBusy(true);
@@ -244,12 +251,15 @@ function RequestDetail() {
   const itemsFullyPurchased = !!reqItems && reqItems.length > 0 &&
     reqItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
   // o que está preenchido na tabela completaria a solicitação? (define o rótulo do botão)
-  const purchaseWouldComplete = !!reqItems && reqItems.every((it: any) => {
+  const purchaseWouldComplete = !!reqItems && reqItems.length > 0 && reqItems.every((it: any) => {
     const already = Number(it.purchased_quantity ?? 0);
     const remaining = Math.max(Number(it.quantity) - already, 0);
-    const raw = buyQty[it.id];
-    const qtyNow = raw === undefined ? remaining : (parseFloat(String(raw).replace(",", ".")) || 0);
-    return already + qtyNow >= Number(it.quantity) - 1e-9;
+    const priceRaw = unitPrices[it.id];
+    const hasPrice = priceRaw !== undefined && String(priceRaw).trim() !== "" && !isNaN(parseFloat(String(priceRaw).replace(",", ".")));
+    const qtyTyped = buyQty[it.id] !== undefined && String(buyQty[it.id]).trim() !== "";
+    const qtyNow = qtyTyped ? (parseFloat(String(buyQty[it.id]).replace(",", ".")) || 0) : remaining;
+    const buyingThis = hasPrice && qtyNow > 0; // só conta se tem preço
+    return already + (buyingThis ? qtyNow : 0) >= Number(it.quantity) - 1e-9;
   });
   const canCancel = (req.requester_id === user?.id || roles.includes("admin")) &&
     (req.status === "pendente" || req.status === "aprovado" || req.status === "parcial" || req.status === "comprado");
@@ -384,13 +394,15 @@ function RequestDetail() {
               const fullQty = Number(it.quantity);
               const already = Number(it.purchased_quantity ?? 0);
               const remaining = Math.max(fullQty - already, 0);
-              const raw = unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "");
+              // em edição, só conta o preço digitado agora; fora de edição, o preço já registrado
+              const raw = editable ? (unitPrices[it.id] ?? "") : (it.unit_price != null ? String(it.unit_price) : "");
               const parsedPrice = parseFloat(String(raw).replace(",", "."));
               const price = isNaN(parsedPrice) ? null : parsedPrice;
               const qtyNowRaw = buyQty[it.id] ?? (remaining > 0 ? String(remaining) : "");
               const parsedQty = parseFloat(String(qtyNowRaw).replace(",", "."));
               const qtyNow = isNaN(parsedQty) ? 0 : parsedQty;
-              // valor da linha: o que está comprando agora (modo edição) ou o que já foi comprado
+              // valor da linha: o que está comprando agora (modo edição) ou o que já foi comprado.
+              // sem preço digitado, a linha não entra no total desta compra.
               const refQty = editable ? qtyNow : already;
               const total = price != null ? price * refQty : null;
               const avg = it.items?.avg_price != null ? Number(it.items.avg_price) : null;
@@ -444,7 +456,7 @@ function RequestDetail() {
                                   />
                                   <Input
                                     type="number" step="0.01" min="0" placeholder="Preço un."
-                                    value={unitPrices[it.id] ?? (it.unit_price != null ? String(it.unit_price) : "")}
+                                    value={unitPrices[it.id] ?? ""}
                                     onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
                                     className="h-8 w-28 text-right"
                                   />
