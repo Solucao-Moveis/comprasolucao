@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban, ClipboardCheck, ArrowRight } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban, ClipboardCheck, ArrowRight, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id/")({
@@ -318,9 +318,13 @@ function RequestDetail() {
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild><Link to="/requests"><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button>
         <div className="flex gap-2">
-          {canEdit && (
+          {canEdit ? (
             <Button variant="outline" size="sm" asChild>
               <Link to="/requests/$id/edit" params={{ id }}><Pencil className="mr-2 h-4 w-4" />Editar</Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/requests/$id/edit" params={{ id }}><Paperclip className="mr-2 h-4 w-4" />Anexar foto</Link>
             </Button>
           )}
           {canCancel && (

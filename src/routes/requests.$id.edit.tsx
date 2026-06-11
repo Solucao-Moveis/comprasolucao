@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2, X, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, X, Check, ChevronsUpDown, Paperclip, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/requests/$id/edit")({
@@ -44,6 +44,8 @@ function EditRequest() {
   const [form, setForm] = useState<any>(null);
   const [rows, setRows] = useState<ItemRow[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [removedAtt, setRemovedAtt] = useState<string[]>([]);
 
   const { data: req } = useQuery({
     queryKey: ["request", id],
@@ -52,6 +54,10 @@ function EditRequest() {
   const { data: existingItems } = useQuery({
     queryKey: ["request_items", id],
     queryFn: async () => (await supabase.from("request_items").select("*").eq("request_id", id).order("position")).data ?? [],
+  });
+  const { data: attachments } = useQuery({
+    queryKey: ["attachments", id],
+    queryFn: async () => (await supabase.from("request_attachments").select("*").eq("request_id", id).order("created_at")).data ?? [],
   });
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -115,15 +121,9 @@ function EditRequest() {
 
   if (!req || !form || !initialized) return <div className="text-muted-foreground">Carregando...</div>;
 
-  const canEdit = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
-  if (!canEdit) {
-    return (
-      <Card className="p-6">
-        <p className="text-sm text-muted-foreground">Você não tem permissão para editar esta solicitação.</p>
-        <Button asChild variant="outline" className="mt-4"><Link to="/requests/$id" params={{ id }}>Voltar</Link></Button>
-      </Card>
-    );
-  }
+  // Edição dos campos (itens, justificativa, etc.) continua restrita ao dono (enquanto pendente) ou admin.
+  // Anexos podem ser adicionados por qualquer usuário logado, em qualquer status.
+  const canEditFields = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
 
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
   const updateRow = (uid: string, patch: Partial<ItemRow>) =>
@@ -135,163 +135,247 @@ function EditRequest() {
     updateRow(uid, { item_id: itemId, description: it?.description ?? "" });
   };
 
+  const downloadAtt = async (path: string, filename: string) => {
+    const { data, error } = await supabase.storage
+      .from("request-attachments")
+      .createSignedUrl(path, 60, { download: filename });
+    if (error || !data?.signedUrl) return toast.error("Erro ao baixar anexo");
+    window.open(data.signedUrl, "_blank");
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.sector_id) return toast.error("Selecione o setor");
-    if (!form.needed_by) return toast.error("Informe a data necessária");
-    if ((form.justification ?? "").trim().length < 5) return toast.error("Justificativa muito curta");
 
-    const validRows = rows.map((r) => ({
-      ...r,
-      qtyNum: parseFloat(String(r.quantity).replace(",", ".")),
-    })).filter((r) => r.description.trim() && !isNaN(r.qtyNum) && r.qtyNum > 0 && r.unit.trim());
-    if (validRows.length === 0) return toast.error("Adicione ao menos um item válido");
+    // Validação só importa quando os campos estão sendo editados.
+    let aggDescription = "";
+    let firstQty = 0;
+    let firstUnit = "";
+    let firstItemId: string | null = null;
+    let validRows: any[] = [];
+    if (canEditFields) {
+      if (!form.sector_id) return toast.error("Selecione o setor");
+      if (!form.needed_by) return toast.error("Informe a data necessária");
+      if ((form.justification ?? "").trim().length < 5) return toast.error("Justificativa muito curta");
+
+      validRows = rows.map((r) => ({
+        ...r,
+        qtyNum: parseFloat(String(r.quantity).replace(",", ".")),
+      })).filter((r) => r.description.trim() && !isNaN(r.qtyNum) && r.qtyNum > 0 && r.unit.trim());
+      if (validRows.length === 0) return toast.error("Adicione ao menos um item válido");
+
+      const first = validRows[0];
+      aggDescription = validRows.length === 1
+        ? first.description
+        : `${validRows.length} itens: ${validRows.map((r) => r.description).join("; ").slice(0, 1500)}`;
+      firstQty = first.qtyNum;
+      firstUnit = first.unit;
+      firstItemId = first.item_id || null;
+    }
 
     setBusy(true);
-    const first = validRows[0];
-    const aggDescription = validRows.length === 1
-      ? first.description
-      : `${validRows.length} itens: ${validRows.map((r) => r.description).join("; ").slice(0, 1500)}`;
 
-    const { error } = await supabase.from("purchase_requests").update({
-      sector_id: form.sector_id,
-      needed_by: form.needed_by,
-      justification: form.justification,
-      priority: form.priority,
-      cost_center_id: form.cost_center_id || null,
-      description: aggDescription,
-      quantity: first.qtyNum,
-      unit: first.unit,
-      item_id: first.item_id || null,
-    }).eq("id", id);
-    if (error) { setBusy(false); return toast.error(error.message); }
+    if (canEditFields) {
+      const { error } = await supabase.from("purchase_requests").update({
+        sector_id: form.sector_id,
+        needed_by: form.needed_by,
+        justification: form.justification,
+        priority: form.priority,
+        cost_center_id: form.cost_center_id || null,
+        description: aggDescription,
+        quantity: firstQty,
+        unit: firstUnit,
+        item_id: firstItemId,
+      }).eq("id", id);
+      if (error) { setBusy(false); return toast.error(error.message); }
 
-    // Sync request_items: delete removed, update existing, insert new
-    const keptIds = validRows.filter((r) => r.id).map((r) => r.id!);
-    const toDelete = (existingItems ?? []).filter((it: any) => !keptIds.includes(it.id)).map((it: any) => it.id);
-    if (toDelete.length > 0) {
-      const { error: delErr } = await supabase.from("request_items").delete().in("id", toDelete);
-      if (delErr) { setBusy(false); return toast.error(`Itens: ${delErr.message}`); }
-    }
-    for (let idx = 0; idx < validRows.length; idx++) {
-      const r = validRows[idx];
-      const payload = {
-        request_id: id,
-        item_id: r.item_id || null,
-        description: r.description.trim(),
-        quantity: r.qtyNum,
-        unit: r.unit.trim(),
-        position: idx,
-      };
-      if (r.id) {
-        const { error: upErr } = await supabase.from("request_items").update(payload).eq("id", r.id);
-        if (upErr) { setBusy(false); return toast.error(`Itens: ${upErr.message}`); }
-      } else {
-        const { error: insErr } = await supabase.from("request_items").insert(payload as any);
-        if (insErr) { setBusy(false); return toast.error(`Itens: ${insErr.message}`); }
+      // Sync request_items: delete removed, update existing, insert new
+      const keptIds = validRows.filter((r) => r.id).map((r) => r.id!);
+      const toDelete = (existingItems ?? []).filter((it: any) => !keptIds.includes(it.id)).map((it: any) => it.id);
+      if (toDelete.length > 0) {
+        const { error: delErr } = await supabase.from("request_items").delete().in("id", toDelete);
+        if (delErr) { setBusy(false); return toast.error(`Itens: ${delErr.message}`); }
+      }
+      for (let idx = 0; idx < validRows.length; idx++) {
+        const r = validRows[idx];
+        const payload = {
+          request_id: id,
+          item_id: r.item_id || null,
+          description: r.description.trim(),
+          quantity: r.qtyNum,
+          unit: r.unit.trim(),
+          position: idx,
+        };
+        if (r.id) {
+          const { error: upErr } = await supabase.from("request_items").update(payload).eq("id", r.id);
+          if (upErr) { setBusy(false); return toast.error(`Itens: ${upErr.message}`); }
+        } else {
+          const { error: insErr } = await supabase.from("request_items").insert(payload as any);
+          if (insErr) { setBusy(false); return toast.error(`Itens: ${insErr.message}`); }
+        }
       }
     }
 
+    // Remover anexos marcados
+    const toRemove = (attachments ?? []).filter((a: any) => removedAtt.includes(a.id));
+    if (toRemove.length > 0) {
+      await supabase.storage.from("request-attachments").remove(toRemove.map((a: any) => a.path));
+      const { error: attDelErr } = await supabase.from("request_attachments").delete().in("id", toRemove.map((a: any) => a.id));
+      if (attDelErr) { setBusy(false); return toast.error(`Anexos: ${attDelErr.message}`); }
+    }
+
+    // Enviar novos anexos
+    for (const f of files) {
+      const path = `${user!.id}/${id}/${Date.now()}-${f.name}`;
+      const { error: upErr } = await supabase.storage.from("request-attachments").upload(path, f);
+      if (upErr) { toast.error(`Falha em ${f.name}: ${upErr.message}`); continue; }
+      const { error: insErr } = await supabase.from("request_attachments").insert({
+        request_id: id, path, filename: f.name, size: f.size, uploaded_by: user!.id,
+      });
+      if (insErr) { toast.error(`Anexos: ${insErr.message}`); }
+    }
+
     setBusy(false);
-    toast.success("Solicitação atualizada");
+    toast.success(canEditFields ? "Solicitação atualizada" : "Anexos atualizados");
     qc.invalidateQueries({ queryKey: ["request", id] });
     qc.invalidateQueries({ queryKey: ["request_items", id] });
+    qc.invalidateQueries({ queryKey: ["attachments", id] });
     qc.invalidateQueries({ queryKey: ["requests"] });
     navigate({ to: "/requests/$id", params: { id } });
   };
 
+  const visibleAtt = (attachments ?? []).filter((a: any) => !removedAtt.includes(a.id));
+
   return (
     <div className="mx-auto max-w-4xl space-y-5">
       <Button variant="ghost" size="sm" asChild><Link to="/requests/$id" params={{ id }}><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button>
-      <h1 className="text-2xl font-bold">Editar solicitação {req.number}</h1>
+      <h1 className="text-2xl font-bold">{canEditFields ? "Editar" : "Anexos da"} solicitação {req.number}</h1>
+      {!canEditFields && (
+        <p className="text-sm text-muted-foreground">Você pode adicionar ou remover anexos desta solicitação. Os demais campos não podem ser alterados.</p>
+      )}
       <form onSubmit={submit} className="space-y-5">
-        <Card className="p-6 space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Setor *</Label>
-              <select className={selectClassName} value={form.sector_id} onChange={(e) => set("sector_id", e.target.value)}>
-                <option value="" disabled>Selecione</option>
-                {sectors?.map((s: any) => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Centro de custo</Label>
-              <select className={selectClassName} value={form.cost_center_id || ""} onChange={(e) => set("cost_center_id", e.target.value)}>
-                <option value="">—</option>
-                {ccs?.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
-              </select>
-            </div>
-          </div>
-        </Card>
+        {canEditFields && (
+          <>
+            <Card className="p-6 space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Setor *</Label>
+                  <select className={selectClassName} value={form.sector_id} onChange={(e) => set("sector_id", e.target.value)}>
+                    <option value="" disabled>Selecione</option>
+                    {sectors?.map((s: any) => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Centro de custo</Label>
+                  <select className={selectClassName} value={form.cost_center_id || ""} onChange={(e) => set("cost_center_id", e.target.value)}>
+                    <option value="">—</option>
+                    {ccs?.map((c) => <option key={c.id} value={c.id}>{c.code} — {c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens</h3>
+                <Button type="button" variant="outline" size="sm" onClick={addRow}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar item
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {rows.map((row, idx) => {
+                  const selected = items?.find((i: any) => i.id === row.item_id);
+                  return (
+                    <div key={row.uid} className="rounded-lg border bg-muted/20 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-muted-foreground">Item {idx + 1}</span>
+                        {rows.length > 1 && (
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(row.uid)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Código *</Label>
+                          <ItemPicker
+                            items={items ?? []}
+                            value={row.item_id}
+                            selected={selected}
+                            onPick={(id) => onPickItem(row.uid, id)}
+                            onClear={() => updateRow(row.uid, { item_id: "" })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Descrição *</Label>
+                          <Input value={row.description} onChange={(e) => updateRow(row.uid, { description: e.target.value })} />
+                        </div>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Quantidade *</Label>
+                          <Input type="number" step="0.01" min="0" value={row.quantity} onChange={(e) => updateRow(row.uid, { quantity: e.target.value })} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Unidade *</Label>
+                          <Input placeholder="un, kg, h..." value={row.unit} onChange={(e) => updateRow(row.uid, { unit: e.target.value })} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            <Card className="p-6 space-y-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label>Prioridade *</Label>
+                  <select className={selectClassName} value={form.priority} onChange={(e) => set("priority", e.target.value)}>
+                    <option value="baixa">Baixa</option>
+                    <option value="media">Média</option>
+                    <option value="alta">Alta</option>
+                  </select>
+                </div>
+                <div className="space-y-2 md:col-span-2"><Label>Data necessária *</Label><Input type="date" value={form.needed_by} onChange={(e) => set("needed_by", e.target.value)} /></div>
+              </div>
+              <div className="space-y-2">
+                <Label>Justificativa *</Label>
+                <Textarea rows={3} value={form.justification} onChange={(e) => set("justification", e.target.value)} />
+              </div>
+            </Card>
+          </>
+        )}
 
         <Card className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens</h3>
-            <Button type="button" variant="outline" size="sm" onClick={addRow}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar item
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {rows.map((row, idx) => {
-              const selected = items?.find((i: any) => i.id === row.item_id);
-              return (
-                <div key={row.uid} className="rounded-lg border bg-muted/20 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Item {idx + 1}</span>
-                    {rows.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(row.uid)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Anexos</h3>
+          {visibleAtt.length > 0 && (
+            <ul className="space-y-1">
+              {visibleAtt.map((a: any) => (
+                <li key={a.id} className="flex items-center justify-between rounded bg-muted/50 px-3 py-1.5 text-sm">
+                  <span className="truncate">{a.filename}</span>
+                  <div className="flex items-center gap-1">
+                    <button type="button" title="Baixar" onClick={() => downloadAtt(a.path, a.filename)}><Download className="h-4 w-4" /></button>
+                    <button type="button" title="Remover" onClick={() => setRemovedAtt((r) => [...r, a.id])}><X className="h-4 w-4" /></button>
                   </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Código *</Label>
-                      <ItemPicker
-                        items={items ?? []}
-                        value={row.item_id}
-                        selected={selected}
-                        onPick={(id) => onPickItem(row.uid, id)}
-                        onClear={() => updateRow(row.uid, { item_id: "" })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Descrição *</Label>
-                      <Input value={row.description} onChange={(e) => updateRow(row.uid, { description: e.target.value })} />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Quantidade *</Label>
-                      <Input type="number" step="0.01" min="0" value={row.quantity} onChange={(e) => updateRow(row.uid, { quantity: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Unidade *</Label>
-                      <Input placeholder="un, kg, h..." value={row.unit} onChange={(e) => updateRow(row.uid, { unit: e.target.value })} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <Card className="p-6 space-y-5">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Prioridade *</Label>
-              <select className={selectClassName} value={form.priority} onChange={(e) => set("priority", e.target.value)}>
-                <option value="baixa">Baixa</option>
-                <option value="media">Média</option>
-                <option value="alta">Alta</option>
-              </select>
-            </div>
-            <div className="space-y-2 md:col-span-2"><Label>Data necessária *</Label><Input type="date" value={form.needed_by} onChange={(e) => set("needed_by", e.target.value)} /></div>
-          </div>
-          <div className="space-y-2">
-            <Label>Justificativa *</Label>
-            <Textarea rows={3} value={form.justification} onChange={(e) => set("justification", e.target.value)} />
-          </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed p-4 text-sm text-muted-foreground hover:bg-accent/40">
+            <Paperclip className="h-4 w-4" />
+            Adicionar fotos ou arquivos
+            <input type="file" multiple className="hidden" onChange={(e) => setFiles([...files, ...Array.from(e.target.files ?? [])])} />
+          </label>
+          {files.length > 0 && (
+            <ul className="space-y-1">
+              {files.map((f, i) => (
+                <li key={i} className="flex items-center justify-between rounded bg-muted/50 px-3 py-1.5 text-sm">
+                  <span className="truncate">{f.name} <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(0)} KB)</span></span>
+                  <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
 
         <div className="flex justify-end gap-3">
