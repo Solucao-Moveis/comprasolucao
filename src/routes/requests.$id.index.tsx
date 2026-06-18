@@ -12,7 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban, ClipboardCheck, ArrowRight, Paperclip } from "lucide-react";
 import { format } from "date-fns";
@@ -32,6 +32,7 @@ function RequestDetail() {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [unitPrices, setUnitPrices] = useState<Record<string, string>>({});
   const [buyQty, setBuyQty] = useState<Record<string, string>>({});
+  const [poNumber, setPoNumber] = useState("");
 
 
   const { data: req } = useQuery({
@@ -105,6 +106,11 @@ function RequestDetail() {
         .limit(1)
         .maybeSingle()).data,
   });
+
+  // mantém o input do pedido de compra em sincronia com o valor salvo
+  useEffect(() => {
+    setPoNumber((req as any)?.purchase_order_number ?? "");
+  }, [(req as any)?.purchase_order_number]);
 
   if (!req) return <div className="text-muted-foreground">Carregando...</div>;
 
@@ -303,6 +309,20 @@ function RequestDetail() {
     if (error) return toast.error(error.message);
     setComment("");
     qc.invalidateQueries({ queryKey: ["comments", id] });
+  };
+
+  // qualquer usuário logado pode preencher/editar o número do pedido de compra
+  const savePurchaseOrder = async () => {
+    setBusy(true);
+    const { error } = await (supabase as any).rpc("set_purchase_order", {
+      p_request_id: id,
+      p_number: poNumber.trim() || null,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Pedido de compra salvo");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["requests"] });
   };
 
   const downloadAtt = async (path: string, filename: string) => {
@@ -537,6 +557,26 @@ function RequestDetail() {
 
         <Card className="p-6 space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
+          <div className="space-y-1.5">
+            <Label htmlFor="po_number" className="text-xs text-muted-foreground">Pedido de compra</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="po_number"
+                placeholder="Nº do pedido"
+                value={poNumber}
+                onChange={(e) => setPoNumber(e.target.value)}
+                className="h-8"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={savePurchaseOrder}
+                disabled={busy || poNumber.trim() === ((req as any).purchase_order_number ?? "")}
+              >
+                Salvar
+              </Button>
+            </div>
+          </div>
           <Field label="Setor" value={req.sectors ? `${req.sectors.code} — ${req.sectors.name}` : "—"} />
           <Field label="Solicitante" value={req.profiles?.full_name ?? req.profiles?.email ?? "—"} />
           <Field label="Data da solicitação" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />

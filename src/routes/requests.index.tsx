@@ -62,7 +62,7 @@ function RequestsList() {
       
       if (q) {
         const s = q.toLowerCase();
-        const hay = `${r.number} ${r.description} ${r.profiles?.full_name ?? ""} ${r.profiles?.email ?? ""}`.toLowerCase();
+        const hay = `${r.number} ${r.purchase_order_number ?? ""} ${r.description} ${r.profiles?.full_name ?? ""} ${r.profiles?.email ?? ""}`.toLowerCase();
         if (!hay.includes(s)) return false;
       }
       return true;
@@ -263,7 +263,7 @@ ${rows.map((r: any) => {
         <div className="grid gap-3 md:grid-cols-6">
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar por número, descrição..." className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input placeholder="Buscar por número, pedido de compra, descrição..." className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
@@ -330,6 +330,9 @@ ${rows.map((r: any) => {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    {r.purchase_order_number && (
+                      <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">Pedido: {r.purchase_order_number}</div>
+                    )}
                   </td>
                   <td className="hidden px-4 py-3 whitespace-nowrap text-xs text-muted-foreground md:table-cell">{format(new Date(r.created_at), "dd/MM/yyyy")}</td>
                   <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground md:table-cell">{r.items?.code ?? "—"}</td>

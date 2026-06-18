@@ -148,6 +148,7 @@ export type Database = {
           number: string | null
           priority: Database["public"]["Enums"]["request_priority"]
           purchase_amount: number | null
+          purchase_order_number: string | null
           purchased_at: string | null
           quantity: number
           requester_id: string
@@ -172,6 +173,7 @@ export type Database = {
           number?: string | null
           priority?: Database["public"]["Enums"]["request_priority"]
           purchase_amount?: number | null
+          purchase_order_number?: string | null
           purchased_at?: string | null
           quantity: number
           requester_id: string
@@ -196,6 +198,7 @@ export type Database = {
           number?: string | null
           priority?: Database["public"]["Enums"]["request_priority"]
           purchase_amount?: number | null
+          purchase_order_number?: string | null
           purchased_at?: string | null
           quantity?: number
           requester_id?: string
@@ -563,6 +566,10 @@ export type Database = {
       is_sector_approver: {
         Args: { _sector_id: string; _user_id: string }
         Returns: boolean
+      }
+      set_purchase_order: {
+        Args: { p_number: string | null; p_request_id: string }
+        Returns: undefined
       }
     }
     Enums: {
