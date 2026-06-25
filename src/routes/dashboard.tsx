@@ -26,7 +26,7 @@ function Dashboard() {
     queryFn: async () => {
       const { data: requests } = await supabase
         .from("purchase_requests")
-        .select("id,number,status,priority,description,quantity,unit,created_at,decided_at,purchased_at,arrived_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name),items(code,description)");
+        .select("id,number,status,priority,description,quantity,unit,needed_by,created_at,decided_at,purchased_at,arrived_at,sector_id,purchase_amount,cost_center_id,sectors(code,name),cost_centers(code,name),items(code,description)");
       return requests ?? [];
     },
   });
@@ -94,6 +94,25 @@ function Dashboard() {
     finalizado: list.filter((r) => r.status === "finalizado").length,
   };
 
+  // SCs atrasadas: passaram da data "Necessário em" (needed_by) e o item ainda não chegou.
+  const CLOSED_STATUS = new Set(["finalizado", "negado", "cancelado"]);
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad2(today.getMonth() + 1)}-${pad2(today.getDate())}`;
+  const parseLocalDate = (s: string) => {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const overdueList = list
+    .filter((r: any) => r.needed_by && !r.arrived_at && !CLOSED_STATUS.has(r.status) && r.needed_by < todayStr)
+    .map((r: any) => ({
+      ...r,
+      daysLate: Math.round((todayStart.getTime() - parseLocalDate(r.needed_by).getTime()) / 86400000),
+    }))
+    .sort((a: any, b: any) => b.daysLate - a.daysLate);
+  const overdueCount = overdueList.length;
+
   const bySector = Object.values(
     list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
@@ -132,6 +151,7 @@ function Dashboard() {
 
   const [ccMonth, setCcMonth] = useState<string>("all");
   const [ccDetail, setCcDetail] = useState<string | null>(null);
+  const [showOverdue, setShowOverdue] = useState(false);
 
   const purchasesList = useMemo(
     () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
@@ -192,7 +212,31 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral das solicitações de compra</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <Card
+          role={overdueCount > 0 ? "button" : undefined}
+          tabIndex={overdueCount > 0 ? 0 : undefined}
+          onClick={() => overdueCount > 0 && setShowOverdue(true)}
+          onKeyDown={(e) => { if (overdueCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowOverdue(true); } }}
+          className={
+            overdueCount > 0
+              ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10"
+              : "p-5 border-success/40 bg-success/5"
+          }
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas</div>
+              <div className={`mt-2 text-3xl font-bold ${overdueCount > 0 ? "text-destructive" : "text-success"}`}>{overdueCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}
+              </p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overdueCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
         {stats.map((s) => (
           <Card key={s.label} className="p-5">
             <div className="flex items-start justify-between">
@@ -351,6 +395,51 @@ function Dashboard() {
           </>
         )}
       </Card>
+
+      <Dialog open={showOverdue} onOpenChange={setShowOverdue}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Solicitações atrasadas ({overdueCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Passaram da data "Necessário em" e o item ainda não chegou (não estão finalizadas, negadas nem canceladas).</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Item / Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Status</th>
+                  <th className="px-2 py-2">Necessário em</th>
+                  <th className="px-2 py-2 text-right">Atraso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueList.length === 0 && (
+                  <tr><td colSpan={6} className="px-2 py-6 text-center text-muted-foreground">Nenhuma solicitação em atraso 🎉</td></tr>
+                )}
+                {overdueList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs capitalize text-muted-foreground">{r.status}</td>
+                    <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-destructive">{r.daysLate} {r.daysLate === 1 ? "dia" : "dias"}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!ccDetail} onOpenChange={(o) => !o && setCcDetail(null)}>
         <DialogContent className="max-w-3xl">
