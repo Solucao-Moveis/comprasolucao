@@ -246,31 +246,87 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral das solicitações de compra</p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      {/* Linha 1 — semáforo de prazo: 4 cards lado a lado */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card
           role={overdueCount > 0 ? "button" : undefined}
           tabIndex={overdueCount > 0 ? 0 : undefined}
           onClick={() => overdueCount > 0 && setShowOverdue(true)}
           onKeyDown={(e) => { if (overdueCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowOverdue(true); } }}
-          className={
-            overdueCount > 0
-              ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10"
-              : "p-5 border-success/40 bg-success/5"
-          }
+          className={overdueCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas</div>
               <div className={`mt-2 text-3xl font-bold ${overdueCount > 0 ? "text-destructive" : "text-success"}`}>{overdueCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}
-              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overdueCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
               <AlertTriangle className="h-5 w-5" />
             </div>
           </div>
         </Card>
+
+        <Card
+          role={purchasedAwaitingCount > 0 ? "button" : undefined}
+          tabIndex={purchasedAwaitingCount > 0 ? 0 : undefined}
+          onClick={() => purchasedAwaitingCount > 0 && setShowPurchasedAwaiting(true)}
+          onKeyDown={(e) => { if (purchasedAwaitingCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowPurchasedAwaiting(true); } }}
+          className={purchasedAwaitingCount > 0 ? "p-5 border-warning/50 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas — em trânsito</div>
+              <div className={`mt-2 text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{purchasedAwaitingCount > 0 ? "Compradas, aguardando entrega · prazo não vencido · clique para ver" : "Nenhuma aguardando entrega"}</p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${purchasedAwaitingCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
+              <Truck className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          role={notPurchasedOnTimeCount > 0 ? "button" : undefined}
+          tabIndex={notPurchasedOnTimeCount > 0 ? 0 : undefined}
+          onClick={() => notPurchasedOnTimeCount > 0 && setShowNotPurchased(true)}
+          onKeyDown={(e) => { if (notPurchasedOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowNotPurchased(true); } }}
+          className={notPurchasedOnTimeCount > 0 ? "p-5 border-warning/30 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
+              <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOnTimeCount > 0 ? "Em aprovação/compra, prazo não venceu · clique para ver" : "Nenhuma pendente dentro do prazo"}</p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
+              <Clock className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          role={deliveredOnTimeCount > 0 ? "button" : undefined}
+          tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
+          onClick={() => deliveredOnTimeCount > 0 && setShowDeliveredOnTime(true)}
+          onKeyDown={(e) => { if (deliveredOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredOnTime(true); } }}
+          className={deliveredOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
+              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
+              <PackageCheck className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Linha 2 — contadores de status */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {stats.map((s) => (
           <Card key={s.label} className="p-5">
             <div className="flex items-start justify-between">
@@ -284,74 +340,6 @@ function Dashboard() {
             </div>
           </Card>
         ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {/* 🟡 Compradas — em trânsito, dentro do prazo */}
-        <Card
-          role={purchasedAwaitingCount > 0 ? "button" : undefined}
-          tabIndex={purchasedAwaitingCount > 0 ? 0 : undefined}
-          onClick={() => purchasedAwaitingCount > 0 && setShowPurchasedAwaiting(true)}
-          onKeyDown={(e) => { if (purchasedAwaitingCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowPurchasedAwaiting(true); } }}
-          className={purchasedAwaitingCount > 0 ? "p-5 border-warning/50 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas — em trânsito</div>
-              <div className={`mt-2 text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {purchasedAwaitingCount > 0 ? "Compradas, aguardando entrega · prazo não vencido · clique para ver" : "Nenhuma aguardando entrega"}
-              </p>
-            </div>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${purchasedAwaitingCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
-              <Truck className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* 🟢 Não compradas — dentro do prazo */}
-        <Card
-          role={notPurchasedOnTimeCount > 0 ? "button" : undefined}
-          tabIndex={notPurchasedOnTimeCount > 0 ? 0 : undefined}
-          onClick={() => notPurchasedOnTimeCount > 0 && setShowNotPurchased(true)}
-          onKeyDown={(e) => { if (notPurchasedOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowNotPurchased(true); } }}
-          className={notPurchasedOnTimeCount > 0 ? "p-5 border-warning/30 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
-              <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {notPurchasedOnTimeCount > 0 ? "Em aprovação/compra, prazo não venceu · clique para ver" : "Nenhuma pendente dentro do prazo"}
-              </p>
-            </div>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
-              <Clock className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-
-        {/* 🟢 Compradas e entregues dentro do prazo */}
-        <Card
-          role={deliveredOnTimeCount > 0 ? "button" : undefined}
-          tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
-          onClick={() => deliveredOnTimeCount > 0 && setShowDeliveredOnTime(true)}
-          onKeyDown={(e) => { if (deliveredOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredOnTime(true); } }}
-          className={deliveredOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
-              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}
-              </p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
-              <PackageCheck className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
       </div>
 
       {isBuyer && (
