@@ -155,6 +155,8 @@ function EditRequest() {
     if (canEditFields) {
       if (!form.sector_id) return toast.error("Selecione o setor");
       if (!form.needed_by) return toast.error("Informe a data necessária");
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (new Date(form.needed_by + "T00:00:00") < today) return toast.error("A data necessária não pode ser anterior a hoje");
       if ((form.justification ?? "").trim().length < 5) return toast.error("Justificativa muito curta");
 
       validRows = rows.map((r) => ({

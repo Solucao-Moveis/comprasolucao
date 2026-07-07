@@ -120,6 +120,8 @@ function NewRequest() {
 
     if (!sector_id) return toast.error("Selecione o setor");
     if (!needed_by) return toast.error("Informe a data necessária");
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (new Date(needed_by + "T00:00:00") < today) return toast.error("A data necessária não pode ser anterior a hoje");
     if (justification.length < 5) return toast.error("Justificativa muito curta");
 
     const validRows = rows.map((r) => ({
