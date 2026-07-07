@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
-import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle, PiggyBank } from "lucide-react";
+import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle, PiggyBank, Truck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useMemo, useState } from "react";
@@ -113,6 +113,37 @@ function Dashboard() {
     .sort((a: any, b: any) => b.daysLate - a.daysLate);
   const overdueCount = overdueList.length;
 
+  // 🟡 Compradas, aguardando entrega, dentro do prazo
+  const purchasedAwaitingList = list
+    .filter((r: any) => r.status === "comprado" && !r.arrived_at && r.needed_by >= todayStr)
+    .map((r: any) => ({
+      ...r,
+      daysRemaining: Math.round((parseLocalDate(r.needed_by).getTime() - todayStart.getTime()) / 86400000),
+    }))
+    .sort((a: any, b: any) => a.daysRemaining - b.daysRemaining);
+  const purchasedAwaitingCount = purchasedAwaitingList.length;
+
+  // 🟢 Não compradas (pendente/aprovado/parcial), dentro do prazo
+  const notPurchasedOnTimeList = list
+    .filter((r: any) => ["pendente", "aprovado", "parcial"].includes(r.status) && r.needed_by >= todayStr)
+    .map((r: any) => ({
+      ...r,
+      daysRemaining: Math.round((parseLocalDate(r.needed_by).getTime() - todayStart.getTime()) / 86400000),
+    }))
+    .sort((a: any, b: any) => a.daysRemaining - b.daysRemaining);
+  const notPurchasedOnTimeCount = notPurchasedOnTimeList.length;
+
+  // 🟢 Compradas e entregues no prazo (arrived_at <= needed_by)
+  const deliveredOnTimeList = list
+    .filter((r: any) => r.arrived_at && (r.arrived_at as string).slice(0, 10) <= r.needed_by)
+    .map((r: any) => {
+      const arrivedStr = (r.arrived_at as string).slice(0, 10);
+      const daysEarly = Math.round((parseLocalDate(r.needed_by).getTime() - parseLocalDate(arrivedStr).getTime()) / 86400000);
+      return { ...r, daysEarly };
+    })
+    .sort((a: any, b: any) => b.daysEarly - a.daysEarly);
+  const deliveredOnTimeCount = deliveredOnTimeList.length;
+
   const bySector = Object.values(
     list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
@@ -152,6 +183,9 @@ function Dashboard() {
   const [ccMonth, setCcMonth] = useState<string>("all");
   const [ccDetail, setCcDetail] = useState<string | null>(null);
   const [showOverdue, setShowOverdue] = useState(false);
+  const [showPurchasedAwaiting, setShowPurchasedAwaiting] = useState(false);
+  const [showNotPurchased, setShowNotPurchased] = useState(false);
+  const [showDeliveredOnTime, setShowDeliveredOnTime] = useState(false);
 
   const purchasesList = useMemo(
     () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
@@ -250,6 +284,74 @@ function Dashboard() {
             </div>
           </Card>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {/* 🟡 Compradas — em trânsito, dentro do prazo */}
+        <Card
+          role={purchasedAwaitingCount > 0 ? "button" : undefined}
+          tabIndex={purchasedAwaitingCount > 0 ? 0 : undefined}
+          onClick={() => purchasedAwaitingCount > 0 && setShowPurchasedAwaiting(true)}
+          onKeyDown={(e) => { if (purchasedAwaitingCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowPurchasedAwaiting(true); } }}
+          className={purchasedAwaitingCount > 0 ? "p-5 border-warning/50 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas — em trânsito</div>
+              <div className={`mt-2 text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {purchasedAwaitingCount > 0 ? "Compradas, aguardando entrega · prazo não vencido · clique para ver" : "Nenhuma aguardando entrega"}
+              </p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${purchasedAwaitingCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
+              <Truck className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+
+        {/* 🟢 Não compradas — dentro do prazo */}
+        <Card
+          role={notPurchasedOnTimeCount > 0 ? "button" : undefined}
+          tabIndex={notPurchasedOnTimeCount > 0 ? 0 : undefined}
+          onClick={() => notPurchasedOnTimeCount > 0 && setShowNotPurchased(true)}
+          onKeyDown={(e) => { if (notPurchasedOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowNotPurchased(true); } }}
+          className={notPurchasedOnTimeCount > 0 ? "p-5 border-warning/30 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
+              <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {notPurchasedOnTimeCount > 0 ? "Em aprovação/compra, prazo não venceu · clique para ver" : "Nenhuma pendente dentro do prazo"}
+              </p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
+              <Clock className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+
+        {/* 🟢 Compradas e entregues dentro do prazo */}
+        <Card
+          role={deliveredOnTimeCount > 0 ? "button" : undefined}
+          tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
+          onClick={() => deliveredOnTimeCount > 0 && setShowDeliveredOnTime(true)}
+          onKeyDown={(e) => { if (deliveredOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredOnTime(true); } }}
+          className={deliveredOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
+              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}
+              </p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
+              <PackageCheck className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       {isBuyer && (
@@ -432,6 +534,137 @@ function Dashboard() {
                     <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
                     <td className="px-2 py-2 text-right">
                       <span className="font-semibold text-destructive">{r.daysLate} {r.daysLate === 1 ? "dia" : "dias"}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Compradas em trânsito */}
+      <Dialog open={showPurchasedAwaiting} onOpenChange={setShowPurchasedAwaiting}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-warning" />
+              Compradas — aguardando entrega ({purchasedAwaitingCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Compradas mas ainda não chegaram. Prazo não vencido.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Necessário em</th>
+                  <th className="px-2 py-2 text-right">Dias restantes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchasedAwaitingList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-warning">{r.daysRemaining} {r.daysRemaining === 1 ? "dia" : "dias"}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Não compradas dentro do prazo */}
+      <Dialog open={showNotPurchased} onOpenChange={setShowNotPurchased}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-warning" />
+              Não compradas — dentro do prazo ({notPurchasedOnTimeCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Em aprovação ou aguardando compra. Prazo ainda não venceu.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Status</th>
+                  <th className="px-2 py-2">Necessário em</th>
+                  <th className="px-2 py-2 text-right">Dias restantes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notPurchasedOnTimeList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs capitalize text-muted-foreground">{r.status}</td>
+                    <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className={`font-semibold ${r.daysRemaining <= 3 ? "text-destructive" : "text-warning"}`}>
+                        {r.daysRemaining} {r.daysRemaining === 1 ? "dia" : "dias"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Compradas e entregues no prazo */}
+      <Dialog open={showDeliveredOnTime} onOpenChange={setShowDeliveredOnTime}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-success" />
+              Compradas e entregues no prazo ({deliveredOnTimeCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Chegaram antes ou na data necessária.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Chegada</th>
+                  <th className="px-2 py-2">Necessário em</th>
+                  <th className="px-2 py-2 text-right">Antecedência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveredOnTimeList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs">{new Date(r.arrived_at).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-success">
+                        {r.daysEarly === 0 ? "No dia" : `${r.daysEarly} ${r.daysEarly === 1 ? "dia" : "dias"} antes`}
+                      </span>
                     </td>
                   </tr>
                 ))}
