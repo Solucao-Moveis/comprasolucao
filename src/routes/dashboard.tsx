@@ -342,33 +342,6 @@ function Dashboard() {
         ))}
       </div>
 
-      {isBuyer && (
-        <Card className="p-5 border-success/40 bg-success/5">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <PiggyBank className="h-4 w-4 text-success" />
-                SAVE — Economia em negociação (mês atual)
-              </div>
-              <div className="mt-1 text-3xl font-bold text-success">{fmtBRL(currentMonthSave)}</div>
-              <p className="text-xs text-muted-foreground">
-                Soma das diferenças quando o preço negociado ficou abaixo do último valor registrado para o mesmo item. Acumulado: <span className="font-semibold text-foreground">{fmtBRL(totalSave)}</span>
-              </p>
-            </div>
-            {savingsSeries.length > 0 && (
-              <div className="w-full sm:w-[320px] h-[100px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={savingsSeries}>
-                    <XAxis dataKey="name" stroke="oklch(0.5 0.03 255)" fontSize={10} />
-                    <Tooltip formatter={(v: number) => fmtBRL(v)} contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }} />
-                    <Bar dataKey="total" fill="oklch(0.62 0.16 150)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-5">
