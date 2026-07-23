@@ -395,51 +395,6 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Linha 2 — contadores de status */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        {stats.map((s) => (
-          <Card key={s.label} className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
-                <div className="mt-2 text-3xl font-bold">{s.value}</div>
-              </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-${s.tone}/15 text-${s.tone}`}>
-                <s.icon className="h-5 w-5" />
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Abertura → Aprovação
-          </div>
-          <div className="mt-1 text-3xl font-bold">{fmtDuration(tCreateToApprove)}</div>
-          <p className="text-xs text-muted-foreground">Tempo médio entre criação e decisão do aprovador</p>
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Aprovação → Compra
-          </div>
-          <div className="mt-1 text-3xl font-bold">{fmtDuration(tApproveToPurchase)}</div>
-          <p className="text-xs text-muted-foreground">Tempo médio entre aprovação e registro da compra</p>
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Compra → Chegada
-          </div>
-          <div className="mt-1 text-3xl font-bold">{fmtDuration(tPurchaseToArrival)}</div>
-          <p className="text-xs text-muted-foreground">Tempo médio entre compra e chegada do item</p>
-        </Card>
-      </div>
-
       {/* Linha extra — SLA Aprovação → Compra (prazo máx. 36h desde a aprovação) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card
@@ -477,6 +432,59 @@ function Dashboard() {
               <AlertTriangle className="h-5 w-5" />
             </div>
           </div>
+        </Card>
+      </div>
+
+      {/* Linha 2 — contadores de status */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        {stats.map((s) => (
+          <Card key={s.label} className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
+                <div className="mt-2 text-3xl font-bold">{s.value}</div>
+              </div>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-${s.tone}/15 text-${s.tone}`}>
+                <s.icon className="h-5 w-5" />
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Abertura → Aprovação
+          </div>
+          <div className="mt-1 text-3xl font-bold">{fmtDuration(tCreateToApprove)}</div>
+          <p className="text-xs text-muted-foreground">Tempo médio entre criação e decisão do aprovador</p>
+        </Card>
+        <Card className={tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS ? "p-5 border-destructive/50 bg-destructive/5" : "p-5"}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <TrendingUp className="h-4 w-4" />
+              Aprovação → Compra
+            </div>
+            {tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS && (
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            )}
+          </div>
+          <div className={`mt-1 text-3xl font-bold ${tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS ? "text-destructive" : ""}`}>{fmtDuration(tApproveToPurchase)}</div>
+          <p className="text-xs text-muted-foreground">
+            Tempo médio entre aprovação e registro da compra
+            {tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS && " · passou do prazo máximo de 36h"}
+          </p>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Compra → Chegada
+          </div>
+          <div className="mt-1 text-3xl font-bold">{fmtDuration(tPurchaseToArrival)}</div>
+          <p className="text-xs text-muted-foreground">Tempo médio entre compra e chegada do item</p>
         </Card>
       </div>
 
