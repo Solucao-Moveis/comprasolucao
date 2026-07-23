@@ -321,14 +321,14 @@ function Dashboard() {
         {overdueCount > 0 && (
           <Card className="p-5 border-destructive/30 bg-destructive/5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — detalhe</div>
-            <div className="mt-3 space-y-1.5 text-xs">
+            <div className="mt-3 space-y-2 text-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Ainda não comprada</span>
-                <span className="font-semibold text-destructive">{overdueNotPurchasedCount}</span>
+                <span className="text-xl font-bold text-destructive">{overdueNotPurchasedCount}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Comprada — entrega atrasada</span>
-                <span className="font-semibold text-destructive">{overduePurchasedLateCount}</span>
+                <span className="text-xl font-bold text-destructive">{overduePurchasedLateCount}</span>
               </div>
             </div>
           </Card>
@@ -384,14 +384,14 @@ function Dashboard() {
         {overdueCount > 0 && (
           <Card className="p-5 border-destructive/30 bg-destructive/5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas — detalhe</div>
-            <div className="mt-3 space-y-1.5 text-xs">
+            <div className="mt-3 space-y-2 text-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Ainda não comprada</span>
-                <span className="font-semibold text-destructive">{pct(overdueNotPurchasedCount, overdueCount)}</span>
+                <span className="text-xl font-bold text-destructive">{pct(overdueNotPurchasedCount, overdueCount)}</span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Comprada — entrega atrasada</span>
-                <span className="font-semibold text-destructive">{pct(overduePurchasedLateCount, overdueCount)}</span>
+                <span className="text-xl font-bold text-destructive">{pct(overduePurchasedLateCount, overdueCount)}</span>
               </div>
             </div>
           </Card>
