@@ -144,6 +144,40 @@ function Dashboard() {
     .sort((a: any, b: any) => b.daysEarly - a.daysEarly);
   const deliveredOnTimeCount = deliveredOnTimeList.length;
 
+  // 🔴 Compradas mas entregues com atraso (arrived_at > needed_by) — base para % do card "entregues no prazo"
+  const deliveredLateCount = list.filter(
+    (r: any) => r.arrived_at && (r.arrived_at as string).slice(0, 10) > r.needed_by
+  ).length;
+  const deliveredTotalCount = deliveredOnTimeCount + deliveredLateCount;
+
+  // Quebra do card Atrasadas: ainda não comprada vs. comprada com entrega atrasada
+  const overdueNotPurchasedCount = overdueList.filter((r: any) => r.status !== "comprado").length;
+  const overduePurchasedLateCount = overdueList.filter((r: any) => r.status === "comprado").length;
+
+  // Base para os percentuais dos cards da Linha 1 (exceto o de entregues no prazo): total de SCs em aberto
+  const openCount = list.filter((r: any) => !CLOSED_STATUS.has(r.status)).length;
+  const pct = (n: number, total: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
+
+  // SLA Aprovação → Compra: prazo máximo de 36h desde a aprovação
+  const SLA_HOURS = 36;
+  const approvedList = list.filter((r: any) => r.decided_at && r.status !== "negado");
+  const purchasedWithinSlaList = approvedList
+    .filter((r: any) => r.purchased_at && (new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5 <= SLA_HOURS)
+    .map((r: any) => ({
+      ...r,
+      hoursToPurchase: Math.round((new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5),
+    }))
+    .sort((a: any, b: any) => b.hoursToPurchase - a.hoursToPurchase);
+  const purchasedWithinSlaCount = purchasedWithinSlaList.length;
+  const notPurchasedOverSlaList = approvedList
+    .filter((r: any) => !r.purchased_at && (now - new Date(r.decided_at).getTime()) / 36e5 > SLA_HOURS)
+    .map((r: any) => ({
+      ...r,
+      hoursOver: Math.round((now - new Date(r.decided_at).getTime()) / 36e5 - SLA_HOURS),
+    }))
+    .sort((a: any, b: any) => b.hoursOver - a.hoursOver);
+  const notPurchasedOverSlaCount = notPurchasedOverSlaList.length;
+
   const bySector = Object.values(
     list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
       const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
@@ -186,6 +220,8 @@ function Dashboard() {
   const [showPurchasedAwaiting, setShowPurchasedAwaiting] = useState(false);
   const [showNotPurchased, setShowNotPurchased] = useState(false);
   const [showDeliveredOnTime, setShowDeliveredOnTime] = useState(false);
+  const [showSlaPurchased, setShowSlaPurchased] = useState(false);
+  const [showSlaNotPurchased, setShowSlaNotPurchased] = useState(false);
 
   const purchasesList = useMemo(
     () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
@@ -258,8 +294,23 @@ function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas</div>
-              <div className={`mt-2 text-3xl font-bold ${overdueCount > 0 ? "text-destructive" : "text-success"}`}>{overdueCount}</div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-3xl font-bold ${overdueCount > 0 ? "text-destructive" : "text-success"}`}>{overdueCount}</span>
+                <span className="text-sm font-medium text-muted-foreground">{pct(overdueCount, openCount)}</span>
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">{overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}</p>
+              {overdueCount > 0 && (
+                <div className="mt-3 space-y-1 border-t border-destructive/20 pt-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Ainda não comprada</span>
+                    <span className="font-semibold text-destructive">{overdueNotPurchasedCount} ({pct(overdueNotPurchasedCount, overdueCount)})</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Comprada — entrega atrasada</span>
+                    <span className="font-semibold text-destructive">{overduePurchasedLateCount} ({pct(overduePurchasedLateCount, overdueCount)})</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overdueCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
               <AlertTriangle className="h-5 w-5" />
@@ -277,7 +328,10 @@ function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas — em trânsito</div>
-              <div className={`mt-2 text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</span>
+                <span className="text-sm font-medium text-muted-foreground">{pct(purchasedAwaitingCount, openCount)}</span>
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">{purchasedAwaitingCount > 0 ? "Compradas, aguardando entrega · prazo não vencido · clique para ver" : "Nenhuma aguardando entrega"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${purchasedAwaitingCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
@@ -296,7 +350,10 @@ function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
-              <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</span>
+                <span className="text-sm font-medium text-muted-foreground">{pct(notPurchasedOnTimeCount, openCount)}</span>
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOnTimeCount > 0 ? "Em aprovação/compra, prazo não venceu · clique para ver" : "Nenhuma pendente dentro do prazo"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
@@ -315,8 +372,12 @@ function Dashboard() {
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
-              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-success">{deliveredOnTimeCount}</span>
+                <span className="text-sm font-medium text-muted-foreground">{pct(deliveredOnTimeCount, deliveredTotalCount)}</span>
+              </div>
               <p className="mt-1 text-xs text-muted-foreground">{deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">% sobre o total de entregas (no prazo + atrasadas)</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <PackageCheck className="h-5 w-5" />
@@ -370,8 +431,45 @@ function Dashboard() {
         </Card>
       </div>
 
-
-
+      {/* Linha extra — SLA Aprovação → Compra (prazo máx. 36h desde a aprovação) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card
+          role={purchasedWithinSlaCount > 0 ? "button" : undefined}
+          tabIndex={purchasedWithinSlaCount > 0 ? 0 : undefined}
+          onClick={() => purchasedWithinSlaCount > 0 && setShowSlaPurchased(true)}
+          onKeyDown={(e) => { if (purchasedWithinSlaCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowSlaPurchased(true); } }}
+          className={purchasedWithinSlaCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas dentro do prazo (36h da aprovação)</div>
+              <div className="mt-2 text-3xl font-bold text-success">{purchasedWithinSlaCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">Comprada em até 36h após a aprovação · clique para ver</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+        <Card
+          role={notPurchasedOverSlaCount > 0 ? "button" : undefined}
+          tabIndex={notPurchasedOverSlaCount > 0 ? 0 : undefined}
+          onClick={() => notPurchasedOverSlaCount > 0 && setShowSlaNotPurchased(true)}
+          onKeyDown={(e) => { if (notPurchasedOverSlaCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowSlaNotPurchased(true); } }}
+          className={notPurchasedOverSlaCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas no prazo (36h da aprovação)</div>
+              <div className={`mt-2 text-3xl font-bold ${notPurchasedOverSlaCount > 0 ? "text-destructive" : "text-success"}`}>{notPurchasedOverSlaCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOverSlaCount > 0 ? "Aprovadas há mais de 36h e ainda não compradas · clique para ver" : "Nenhuma fora do prazo"}</p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOverSlaCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-5">
@@ -626,6 +724,88 @@ function Dashboard() {
                       <span className="font-semibold text-success">
                         {r.daysEarly === 0 ? "No dia" : `${r.daysEarly} ${r.daysEarly === 1 ? "dia" : "dias"} antes`}
                       </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Compradas dentro do prazo (SLA 36h) */}
+      <Dialog open={showSlaPurchased} onOpenChange={setShowSlaPurchased}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-success" />
+              Compradas dentro do prazo — 36h da aprovação ({purchasedWithinSlaCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Tempo entre aprovação e registro da compra dentro do limite de 36 horas.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Aprovado em</th>
+                  <th className="px-2 py-2 text-right">Horas até a compra</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchasedWithinSlaList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs">{new Date(r.decided_at).toLocaleString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-success">{r.hoursToPurchase} h</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Não compradas no prazo (SLA 36h) */}
+      <Dialog open={showSlaNotPurchased} onOpenChange={setShowSlaNotPurchased}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Não compradas no prazo — 36h da aprovação ({notPurchasedOverSlaCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Aprovadas há mais de 36 horas e ainda sem compra registrada.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Aprovado em</th>
+                  <th className="px-2 py-2 text-right">Horas além do prazo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notPurchasedOverSlaList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs">{new Date(r.decided_at).toLocaleString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-destructive">{r.hoursOver} h</span>
                     </td>
                   </tr>
                 ))}
