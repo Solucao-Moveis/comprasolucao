@@ -295,7 +295,6 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas</div>
               <div className={`mt-2 text-3xl font-bold ${overdueCount > 0 ? "text-destructive" : "text-success"}`}>{overdueCount}</div>
-              <div className="mt-0.5 text-sm font-medium text-muted-foreground">{pct(overdueCount, openCount)}</div>
               <p className="mt-1 text-xs text-muted-foreground">{overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overdueCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
@@ -315,7 +314,6 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas — em trânsito</div>
               <div className={`mt-2 text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</div>
-              <div className="mt-0.5 text-sm font-medium text-muted-foreground">{pct(purchasedAwaitingCount, openCount)}</div>
               <p className="mt-1 text-xs text-muted-foreground">{purchasedAwaitingCount > 0 ? "Compradas, aguardando entrega · prazo não vencido · clique para ver" : "Nenhuma aguardando entrega"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${purchasedAwaitingCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
@@ -335,7 +333,6 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
               <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
-              <div className="mt-0.5 text-sm font-medium text-muted-foreground">{pct(notPurchasedOnTimeCount, openCount)}</div>
               <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOnTimeCount > 0 ? "Em aprovação/compra, prazo não venceu · clique para ver" : "Nenhuma pendente dentro do prazo"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
@@ -355,13 +352,36 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
               <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
-              <div className="mt-0.5 text-sm font-medium text-muted-foreground" title="Percentual sobre o total de entregas (no prazo + atrasadas)">{pct(deliveredOnTimeCount, deliveredTotalCount)}</div>
               <p className="mt-1 text-xs text-muted-foreground">{deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <PackageCheck className="h-5 w-5" />
             </div>
           </div>
+        </Card>
+      </div>
+
+      {/* Linha 1a — percentual de cada um dos 4 cards acima, em quadros próprios */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Card className="p-5 border-destructive/30 bg-destructive/5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas</div>
+          <div className="mt-2 text-2xl font-bold text-destructive">{pct(overdueCount, openCount)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
+        </Card>
+        <Card className="p-5 border-warning/30 bg-warning/5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">% Compradas — em trânsito</div>
+          <div className="mt-2 text-2xl font-bold text-warning">{pct(purchasedAwaitingCount, openCount)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
+        </Card>
+        <Card className="p-5 border-warning/20 bg-warning/5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">% Não compradas — no prazo</div>
+          <div className="mt-2 text-2xl font-bold text-warning">{pct(notPurchasedOnTimeCount, openCount)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
+        </Card>
+        <Card className="p-5 border-success/30 bg-success/5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">% Entregues no prazo</div>
+          <div className="mt-2 text-2xl font-bold text-success">{pct(deliveredOnTimeCount, deliveredTotalCount)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">do total de entregas (no prazo + atrasadas)</p>
         </Card>
       </div>
 
