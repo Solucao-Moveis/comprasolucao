@@ -283,10 +283,6 @@ function Dashboard() {
   };
 
   const stats = [
-    { label: "Pendentes", value: counts.pendente, icon: Clock, tone: "warning" },
-    { label: "Aprovadas", value: counts.aprovado, icon: CheckCircle2, tone: "success" },
-    { label: "Negadas", value: counts.negado, icon: XCircle, tone: "destructive" },
-    { label: "Compradas", value: counts.comprado, icon: PackageCheck, tone: "primary" },
     { label: "Finalizadas", value: counts.finalizado, icon: PackageCheck, tone: "info" },
   ];
 
@@ -297,8 +293,13 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral das solicitações de compra</p>
       </div>
 
-      {/* Linha 1 — semáforo de prazo: 3 cards + detalhe do Atrasadas lado a lado */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Linha 1 — semáforo de prazo: total em aberto (base dos % abaixo) + 3 cards + detalhe do Atrasadas */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <Card className="p-5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total de SCs em aberto</div>
+          <div className="mt-2 text-3xl font-bold">{openCount}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Base dos percentuais desta linha</p>
+        </Card>
         <Card
           role={overdueCount > 0 ? "button" : undefined}
           tabIndex={overdueCount > 0 ? 0 : undefined}
@@ -408,12 +409,17 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Linha — entregas: total geral / no prazo / fora do prazo */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Linha — entregas: total geral (entregas + compras) / no prazo / fora do prazo */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card className="p-5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (entregas)</div>
           <div className="mt-2 text-3xl font-bold">{deliveredTotalCount}</div>
           <p className="mt-1 text-xs text-muted-foreground">Total de solicitações já entregues</p>
+        </Card>
+        <Card className="p-5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (compras)</div>
+          <div className="mt-2 text-3xl font-bold">{list.length}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Todas as solicitações de compra</p>
         </Card>
         <Card
           role={deliveredOnTimeCount > 0 ? "button" : undefined}
@@ -493,13 +499,8 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Linha 2 — total geral + contadores de status, cada um com % do total */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
-        <Card className="p-5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral</div>
-          <div className="mt-2 text-3xl font-bold">{list.length}</div>
-          <p className="mt-1 text-xs text-muted-foreground">Todas as solicitações de compra</p>
-        </Card>
+      {/* Linha 2 — contadores de status, cada um com % do total geral */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => (
           <Card key={s.label} className="p-5">
             <div className="flex items-start justify-between">
