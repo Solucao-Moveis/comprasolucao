@@ -82,6 +82,7 @@ function Dashboard() {
     });
 
   const now = Date.now();
+  const SLA_HOURS = 36; // prazo máximo entre aprovação e registro da compra
   const dueItems = (items ?? []).filter((i: any) => i.last_purchased_at && i.avg_interval_days &&
     (now - new Date(i.last_purchased_at).getTime()) / 86400000 >= Number(i.avg_interval_days));
 
@@ -123,14 +124,21 @@ function Dashboard() {
     .sort((a: any, b: any) => a.daysRemaining - b.daysRemaining);
   const purchasedAwaitingCount = purchasedAwaitingList.length;
 
-  // 🟢 Não compradas (pendente/aprovado/parcial), dentro do prazo
+  // 🟢 Não compradas (pendente/aprovado/parcial), dentro do prazo de 36h da aprovação
+  // (pendente ainda nem foi aprovada, então o relógio das 36h nem começou a contar)
   const notPurchasedOnTimeList = list
-    .filter((r: any) => ["pendente", "aprovado", "parcial"].includes(r.status) && r.needed_by >= todayStr)
+    .filter((r: any) => {
+      if (!["pendente", "aprovado", "parcial"].includes(r.status)) return false;
+      if (!r.decided_at) return true;
+      return (now - new Date(r.decided_at).getTime()) / 36e5 <= SLA_HOURS;
+    })
     .map((r: any) => ({
       ...r,
-      daysRemaining: Math.round((parseLocalDate(r.needed_by).getTime() - todayStart.getTime()) / 86400000),
+      hoursRemaining: r.decided_at
+        ? Math.round(SLA_HOURS - (now - new Date(r.decided_at).getTime()) / 36e5)
+        : null,
     }))
-    .sort((a: any, b: any) => a.daysRemaining - b.daysRemaining);
+    .sort((a: any, b: any) => (a.hoursRemaining ?? Infinity) - (b.hoursRemaining ?? Infinity));
   const notPurchasedOnTimeCount = notPurchasedOnTimeList.length;
 
   // 🟢 Compradas e entregues no prazo (arrived_at <= needed_by)
@@ -159,7 +167,6 @@ function Dashboard() {
   const pct = (n: number, total: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
 
   // SLA Aprovação → Compra: prazo máximo de 36h desde a aprovação
-  const SLA_HOURS = 36;
   const approvedList = list.filter((r: any) => r.decided_at && r.status !== "negado");
   const purchasedWithinSlaList = approvedList
     .filter((r: any) => r.purchased_at && (new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5 <= SLA_HOURS)
@@ -201,6 +208,7 @@ function Dashboard() {
     if (h < 24) return `${h.toFixed(1)} h`;
     return `${(h / 24).toFixed(1)} d`;
   };
+  const fmtHours = (h: number | null) => (h == null ? "—" : `${h.toFixed(1)} h`);
   const tCreateToApprove = avgHours(
     list.filter((r: any) => r.decided_at).map((r: any) =>
       (new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5)
@@ -296,18 +304,6 @@ function Dashboard() {
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas</div>
               <div className={`mt-2 text-3xl font-bold ${overdueCount > 0 ? "text-destructive" : "text-success"}`}>{overdueCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}</p>
-              {overdueCount > 0 && (
-                <div className="mt-3 space-y-1 border-t border-destructive/20 pt-2 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Ainda não comprada</span>
-                    <span className="font-semibold text-destructive">{overdueNotPurchasedCount}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Comprada — entrega atrasada</span>
-                    <span className="font-semibold text-destructive">{overduePurchasedLateCount}</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overdueCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
               <AlertTriangle className="h-5 w-5" />
@@ -345,7 +341,7 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
               <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOnTimeCount > 0 ? "Em aprovação/compra, prazo não venceu · clique para ver" : "Nenhuma pendente dentro do prazo"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOnTimeCount > 0 ? "Aguardando aprovação ou dentro das 36h após aprovada · clique para ver" : "Nenhuma pendente dentro do prazo"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
               <Clock className="h-5 w-5" />
@@ -372,6 +368,25 @@ function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Quebra do Atrasadas em card próprio */}
+      {overdueCount > 0 && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Card className="p-5 border-destructive/30 bg-destructive/5">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — detalhe</div>
+            <div className="mt-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Ainda não comprada</span>
+                <span className="font-semibold text-destructive">{overdueNotPurchasedCount}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Comprada — entrega atrasada</span>
+                <span className="font-semibold text-destructive">{overduePurchasedLateCount}</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Linha 1a — percentual de cada um dos 4 cards acima, em quadros próprios */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -401,11 +416,6 @@ function Dashboard() {
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Não compradas — no prazo</div>
           <div className="mt-2 text-2xl font-bold text-warning">{pct(notPurchasedOnTimeCount, openCount)}</div>
           <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
-        </Card>
-        <Card className="p-5 border-success/30 bg-success/5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">% Entregues no prazo</div>
-          <div className="mt-2 text-2xl font-bold text-success">{pct(deliveredOnTimeCount, deliveredTotalCount)}</div>
-          <p className="mt-1 text-xs text-muted-foreground">do total de entregas (no prazo + atrasadas)</p>
         </Card>
       </div>
 
@@ -486,7 +496,7 @@ function Dashboard() {
               <AlertTriangle className="h-4 w-4 text-destructive" />
             )}
           </div>
-          <div className={`mt-1 text-3xl font-bold ${tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS ? "text-destructive" : ""}`}>{fmtDuration(tApproveToPurchase)}</div>
+          <div className={`mt-1 text-3xl font-bold ${tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS ? "text-destructive" : ""}`}>{fmtHours(tApproveToPurchase)}</div>
           <p className="text-xs text-muted-foreground">
             Tempo médio entre aprovação e registro da compra
             {tApproveToPurchase != null && tApproveToPurchase > SLA_HOURS && " · passou do prazo máximo de 36h"}
@@ -683,7 +693,7 @@ function Dashboard() {
               Não compradas — dentro do prazo ({notPurchasedOnTimeCount})
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Em aprovação ou aguardando compra. Prazo ainda não venceu.</p>
+          <p className="text-xs text-muted-foreground">Aguardando aprovação (prazo ainda não começou) ou aprovada há menos de 36h e ainda sem compra registrada.</p>
           <div className="max-h-[60vh] overflow-auto">
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -692,8 +702,8 @@ function Dashboard() {
                   <th className="px-2 py-2">Descrição</th>
                   <th className="px-2 py-2">Setor</th>
                   <th className="px-2 py-2">Status</th>
-                  <th className="px-2 py-2">Necessário em</th>
-                  <th className="px-2 py-2 text-right">Dias restantes</th>
+                  <th className="px-2 py-2">Aprovado em</th>
+                  <th className="px-2 py-2 text-right">Horas restantes (36h)</th>
                 </tr>
               </thead>
               <tbody>
@@ -705,11 +715,13 @@ function Dashboard() {
                     <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
                     <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
                     <td className="px-2 py-2 text-xs capitalize text-muted-foreground">{r.status}</td>
-                    <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-xs">{r.decided_at ? new Date(r.decided_at).toLocaleString("pt-BR") : "Aguardando aprovação"}</td>
                     <td className="px-2 py-2 text-right">
-                      <span className={`font-semibold ${r.daysRemaining <= 3 ? "text-destructive" : "text-warning"}`}>
-                        {r.daysRemaining} {r.daysRemaining === 1 ? "dia" : "dias"}
-                      </span>
+                      {r.hoursRemaining == null ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <span className={`font-semibold ${r.hoursRemaining <= 6 ? "text-destructive" : "text-warning"}`}>{r.hoursRemaining} h</span>
+                      )}
                     </td>
                   </tr>
                 ))}
