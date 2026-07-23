@@ -424,12 +424,12 @@ function Dashboard() {
           tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
           onClick={() => deliveredOnTimeCount > 0 && setShowDeliveredOnTime(true)}
           onKeyDown={(e) => { if (deliveredOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredOnTime(true); } }}
-          className={deliveredOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
+          className={deliveredOnTimeCount > 0 ? "p-5 cursor-pointer transition-colors hover:bg-muted/40" : "p-5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Chegaram no prazo</div>
-              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
+              <div className="mt-2 text-3xl font-bold">{deliveredOnTimeCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredOnTimeCount, deliveredTotalCount)} do total geral · clique para ver</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
@@ -442,12 +442,12 @@ function Dashboard() {
           tabIndex={deliveredLateCount > 0 ? 0 : undefined}
           onClick={() => deliveredLateCount > 0 && setShowDeliveredLate(true)}
           onKeyDown={(e) => { if (deliveredLateCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredLate(true); } }}
-          className={deliveredLateCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
+          className={deliveredLateCount > 0 ? "p-5 cursor-pointer transition-colors hover:bg-muted/40" : "p-5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não chegaram no prazo</div>
-              <div className={`mt-2 text-3xl font-bold ${deliveredLateCount > 0 ? "text-destructive" : "text-success"}`}>{deliveredLateCount}</div>
+              <div className="mt-2 text-3xl font-bold">{deliveredLateCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredLateCount, deliveredTotalCount)} do total geral · clique para ver</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${deliveredLateCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
@@ -460,12 +460,12 @@ function Dashboard() {
           tabIndex={purchasedWithinSlaCount > 0 ? 0 : undefined}
           onClick={() => purchasedWithinSlaCount > 0 && setShowSlaPurchased(true)}
           onKeyDown={(e) => { if (purchasedWithinSlaCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowSlaPurchased(true); } }}
-          className={purchasedWithinSlaCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
+          className={purchasedWithinSlaCount > 0 ? "p-5 cursor-pointer transition-colors hover:bg-muted/40" : "p-5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas dentro do prazo (36h da aprovação)</div>
-              <div className="mt-2 text-3xl font-bold text-success">{purchasedWithinSlaCount}</div>
+              <div className="mt-2 text-3xl font-bold">{purchasedWithinSlaCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{pct(purchasedWithinSlaCount, list.length)} do total geral · clique para ver</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
@@ -478,12 +478,12 @@ function Dashboard() {
           tabIndex={notPurchasedOverSlaCount > 0 ? 0 : undefined}
           onClick={() => notPurchasedOverSlaCount > 0 && setShowSlaNotPurchased(true)}
           onKeyDown={(e) => { if (notPurchasedOverSlaCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowSlaNotPurchased(true); } }}
-          className={notPurchasedOverSlaCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
+          className={notPurchasedOverSlaCount > 0 ? "p-5 cursor-pointer transition-colors hover:bg-muted/40" : "p-5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas no prazo (36h da aprovação)</div>
-              <div className={`mt-2 text-3xl font-bold ${notPurchasedOverSlaCount > 0 ? "text-destructive" : "text-success"}`}>{notPurchasedOverSlaCount}</div>
+              <div className="mt-2 text-3xl font-bold">{notPurchasedOverSlaCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOverSlaCount > 0 ? `${pct(notPurchasedOverSlaCount, list.length)} do total geral · clique para ver` : "Nenhuma fora do prazo"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOverSlaCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
