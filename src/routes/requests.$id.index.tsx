@@ -6,11 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge, PriorityBadge, ClassificationBadge } from "@/components/StatusBadge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -34,8 +38,11 @@ function RequestDetail() {
   const [buyQty, setBuyQty] = useState<Record<string, string>>({});
   const [arriveQty, setArriveQty] = useState<Record<string, string>>({});
   const [expectedDelivery, setExpectedDelivery] = useState("");
-  const [newPoNumber, setNewPoNumber] = useState("");
   const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
+  const [poDialogOpen, setPoDialogOpen] = useState(false);
+  const [poDialogTarget, setPoDialogTarget] = useState<any | null>(null); // null = novo pedido; objeto = editando um existente
+  const [poDialogNumber, setPoDialogNumber] = useState("");
+  const [poDialogSel, setPoDialogSel] = useState<Record<string, { checked: boolean; qty: string }>>({});
 
 
   const { data: req } = useQuery({
@@ -119,6 +126,20 @@ function RequestDetail() {
         .order("created_at");
       return data ?? [];
     },
+  });
+  // itens vinculados a cada pedido de compra (pra baixa automática na chegada)
+  const { data: poItems } = useQuery({
+    queryKey: ["purchase_order_items", id, (purchaseOrders ?? []).map((po: any) => po.id).join(",")],
+    queryFn: async () => {
+      const poIds = (purchaseOrders ?? []).map((po: any) => po.id);
+      if (poIds.length === 0) return [];
+      const { data } = await (supabase as any)
+        .from("purchase_order_items")
+        .select("*")
+        .in("purchase_order_id", poIds);
+      return data ?? [];
+    },
+    enabled: !!purchaseOrders,
   });
 
   // mantém o input da previsão de entrega em sincronia com o valor salvo
@@ -323,6 +344,58 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
+  // Dá baixa de uma vez em todos os itens vinculados a um pedido de compra (a quantidade
+  // vem travada do vínculo cadastrado — não é digitada aqui). Marca o pedido como chegado.
+  const registerArrivalByPO = async (po: any) => {
+    const items = (poItems ?? []).filter((pi: any) => pi.purchase_order_id === po.id);
+    if (items.length === 0) return toast.error("Este pedido não tem itens vinculados");
+    setBusy(true);
+    const toArrive = items.map((pi: any) => {
+      const it = reqItems?.find((r: any) => r.id === pi.request_item_id);
+      const already = Number(it?.arrived_quantity ?? 0);
+      const remaining = Math.max(Number(it?.purchased_quantity ?? 0) - already, 0);
+      const qty = Math.min(Number(pi.quantity), remaining);
+      return { it, already, qty };
+    }).filter((r: any) => r.qty > 0);
+    if (toArrive.length === 0) { setBusy(false); return toast.error("Os itens deste pedido já foram recebidos"); }
+    const entries = toArrive.map((r: any) => ({
+      request_id: id, request_item_id: r.it.id, quantity: r.qty, created_by: user!.id, purchase_order_id: po.id,
+    }));
+    const { error: eErr } = await (supabase as any).from("arrival_entries").insert(entries);
+    if (eErr) { setBusy(false); return toast.error(eErr.message); }
+    for (const r of toArrive) {
+      const { error } = await supabase.from("request_items")
+        .update({ arrived_quantity: r.already + r.qty } as any)
+        .eq("id", r.it.id);
+      if (error) { setBusy(false); return toast.error(error.message); }
+    }
+    const { error: poErr } = await (supabase as any).from("purchase_orders")
+      .update({ arrived_at: new Date().toISOString() }).eq("id", po.id);
+    if (poErr) { setBusy(false); return toast.error(poErr.message); }
+    const allArrived = (reqItems ?? []).every((it: any) => {
+      const bump = toArrive.find((r: any) => r.it.id === it.id)?.qty ?? 0;
+      return Number(it.arrived_quantity ?? 0) + bump >= Number(it.quantity) - 1e-9;
+    });
+    if (allArrived) {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase.from("purchase_requests").update({
+        arrived_at: nowIso, status: "finalizado", finalized_at: req.finalized_at ?? nowIso,
+      }).eq("id", id);
+      if (error) { setBusy(false); return toast.error(error.message); }
+      await supabase.from("notifications").insert({
+        user_id: req.requester_id, request_id: id, title: "Material recebido",
+        body: `O material da solicitação ${req.number} chegou.`,
+      });
+    }
+    setBusy(false);
+    toast.success(allArrived ? "Chegada registrada (completa)" : `Chegada do pedido ${po.number} registrada`);
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["request_items", id] });
+    qc.invalidateQueries({ queryKey: ["arrival_entries", id] });
+    qc.invalidateQueries({ queryKey: ["purchase_orders", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+  };
+
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado") && !req.arrived_at;
@@ -342,6 +415,9 @@ function RequestDetail() {
   // existe algo já comprado que ainda não chegou? (define se mostra a seção de chegada por item)
   const anyArrivable = !!reqItems && reqItems.some((it: any) =>
     Number(it.purchased_quantity ?? 0) > Number(it.arrived_quantity ?? 0) + 1e-9);
+  // pedidos de compra com itens vinculados e ainda não recebidos (define a seção de chegada por pedido)
+  const arrivablePOs = (purchaseOrders ?? []).filter((po: any) =>
+    !po.arrived_at && (poItems ?? []).some((pi: any) => pi.purchase_order_id === po.id));
   // o que está preenchido na tabela completaria a chegada da solicitação? (define o rótulo do botão)
   const arrivalWouldComplete = !!reqItems && reqItems.length > 0 && reqItems.every((it: any) => {
     const purchased = Number(it.purchased_quantity ?? 0);
@@ -408,19 +484,76 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["request", id] });
   };
 
-  // comprador/admin registram um pedido de compra da lista (uma solicitação pode gerar mais de um)
-  const addPurchaseOrder = async () => {
-    const number = newPoNumber.trim();
-    if (!number) return toast.error("Informe o número do pedido");
-    setBusy(true);
-    const { error } = await (supabase as any).from("purchase_orders").insert({
-      request_id: id, number, created_by: user!.id,
+  // quanto de um item ainda está livre pra vincular a este pedido (comprado - já vinculado a OUTROS pedidos)
+  const poItemAvailability = (itemId: string) => {
+    const it = reqItems?.find((r: any) => r.id === itemId);
+    const purchased = Number(it?.purchased_quantity ?? 0);
+    const linkedElsewhere = (poItems ?? [])
+      .filter((pi: any) => pi.request_item_id === itemId && pi.purchase_order_id !== poDialogTarget?.id)
+      .reduce((s: number, pi: any) => s + Number(pi.quantity), 0);
+    return Math.max(purchased - linkedElsewhere, 0);
+  };
+
+  const openNewPoDialog = () => {
+    setPoDialogTarget(null);
+    setPoDialogNumber("");
+    setPoDialogSel({});
+    setPoDialogOpen(true);
+  };
+
+  const openEditPoDialog = (po: any) => {
+    setPoDialogTarget(po);
+    setPoDialogNumber(po.number);
+    const sel: Record<string, { checked: boolean; qty: string }> = {};
+    (poItems ?? []).filter((pi: any) => pi.purchase_order_id === po.id).forEach((pi: any) => {
+      sel[pi.request_item_id] = { checked: true, qty: String(pi.quantity) };
     });
+    setPoDialogSel(sel);
+    setPoDialogOpen(true);
+  };
+
+  // comprador/admin cadastram um pedido de compra (uma solicitação pode gerar mais de um) e,
+  // opcionalmente, vinculam quais itens (e quanto de cada) esse pedido cobre — pra dar baixa
+  // automática na chegada em vez de lançar item a item.
+  const savePoDialog = async () => {
+    const number = poDialogNumber.trim();
+    if (!number) return toast.error("Informe o número do pedido");
+    const selectedItems = Object.entries(poDialogSel)
+      .filter(([, v]) => v.checked)
+      .map(([itemId, v]) => ({ itemId, qty: parseFloat(String(v.qty).replace(",", ".")) }));
+    for (const s of selectedItems) {
+      const it = reqItems?.find((r: any) => r.id === s.itemId);
+      if (isNaN(s.qty) || s.qty <= 0) return toast.error(`Quantidade inválida em "${it?.description}"`);
+      const avail = poItemAvailability(s.itemId);
+      if (s.qty > avail + 1e-9) {
+        return toast.error(`"${it?.description}": quantidade acima do disponível (${avail})`);
+      }
+    }
+    setBusy(true);
+    let poId = poDialogTarget?.id as string | undefined;
+    if (poDialogTarget) {
+      if (number !== poDialogTarget.number) {
+        const { error } = await (supabase as any).from("purchase_orders").update({ number }).eq("id", poId);
+        if (error) { setBusy(false); return toast.error(error.message); }
+      }
+      const { error: delErr } = await (supabase as any).from("purchase_order_items").delete().eq("purchase_order_id", poId);
+      if (delErr) { setBusy(false); return toast.error(delErr.message); }
+    } else {
+      const { data, error } = await (supabase as any).from("purchase_orders")
+        .insert({ request_id: id, number, created_by: user!.id }).select("id").single();
+      if (error) { setBusy(false); return toast.error(error.message); }
+      poId = data.id;
+    }
+    if (selectedItems.length > 0) {
+      const rows = selectedItems.map((s) => ({ purchase_order_id: poId, request_item_id: s.itemId, quantity: s.qty }));
+      const { error: insErr } = await (supabase as any).from("purchase_order_items").insert(rows);
+      if (insErr) { setBusy(false); return toast.error(insErr.message); }
+    }
     setBusy(false);
-    if (error) return toast.error(error.message);
-    setNewPoNumber("");
-    toast.success("Pedido de compra adicionado");
+    setPoDialogOpen(false);
+    toast.success(poDialogTarget ? "Pedido de compra atualizado" : "Pedido de compra adicionado");
     qc.invalidateQueries({ queryKey: ["purchase_orders", id] });
+    qc.invalidateQueries({ queryKey: ["purchase_order_items", id] });
     qc.invalidateQueries({ queryKey: ["requests"] });
   };
 
@@ -709,56 +842,67 @@ function RequestDetail() {
             <Label className="text-xs text-muted-foreground">Pedidos de compra</Label>
             {purchaseOrders && purchaseOrders.length > 0 ? (
               <div className="space-y-1.5">
-                {purchaseOrders.map((po: any) => (
-                  <div key={po.id} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5">
-                    <span className="font-mono text-sm">{po.number}</span>
-                    <div className="flex items-center gap-1">
-                      {po.invoice_path ? (
-                        <Button size="sm" variant="ghost" className="h-7" onClick={() => downloadInvoice(po.invoice_path, po.number)}>
-                          <Download className="mr-1 h-3.5 w-3.5" /> Ver NF
-                        </Button>
-                      ) : canPurchase ? (
-                        <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-muted">
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {invoiceBusy === po.id ? "Enviando..." : "Anexar NF"}
-                          <input
-                            type="file"
-                            className="hidden"
-                            disabled={invoiceBusy === po.id}
-                            onChange={(e) => {
-                              const f = e.target.files?.[0];
-                              if (f) attachInvoice(po.id, f);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">Sem NF</span>
-                      )}
-                      {canPurchase && (
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removePurchaseOrder(po.id)}>
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      )}
+                {purchaseOrders.map((po: any) => {
+                  const itemCount = (poItems ?? []).filter((pi: any) => pi.purchase_order_id === po.id).length;
+                  return (
+                    <div key={po.id} className="space-y-1 rounded-md border px-2 py-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-sm">{po.number}</span>
+                          {po.arrived_at && (
+                            <span className="inline-flex items-center gap-1 text-xs text-success">
+                              <Truck className="h-3 w-3" /> Chegou
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {po.invoice_path ? (
+                            <Button size="sm" variant="ghost" className="h-7" onClick={() => downloadInvoice(po.invoice_path, po.number)}>
+                              <Download className="mr-1 h-3.5 w-3.5" /> Ver NF
+                            </Button>
+                          ) : canPurchase ? (
+                            <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-muted">
+                              <Paperclip className="h-3.5 w-3.5" />
+                              {invoiceBusy === po.id ? "Enviando..." : "Anexar NF"}
+                              <input
+                                type="file"
+                                className="hidden"
+                                disabled={invoiceBusy === po.id}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f) attachInvoice(po.id, f);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Sem NF</span>
+                          )}
+                          {canPurchase && (
+                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removePurchaseOrder(po.id)}>
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {canPurchase && !po.arrived_at ? (
+                        <button type="button" onClick={() => openEditPoDialog(po)} className="text-xs text-primary hover:underline">
+                          {itemCount > 0 ? `${itemCount} item${itemCount > 1 ? "ns" : ""} vinculado${itemCount > 1 ? "s" : ""}` : "Vincular itens"}
+                        </button>
+                      ) : itemCount > 0 ? (
+                        <span className="text-xs text-muted-foreground">{itemCount} item{itemCount > 1 ? "ns" : ""} vinculado{itemCount > 1 ? "s" : ""}</span>
+                      ) : null}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               !canPurchase && <p className="text-sm text-muted-foreground">—</p>
             )}
             {canPurchase && (
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Nº do pedido"
-                  value={newPoNumber}
-                  onChange={(e) => setNewPoNumber(e.target.value)}
-                  className="h-8"
-                />
-                <Button size="sm" variant="outline" onClick={addPurchaseOrder} disabled={busy || !newPoNumber.trim()}>
-                  <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
-                </Button>
-              </div>
+              <Button size="sm" variant="outline" onClick={openNewPoDialog}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar pedido de compra
+              </Button>
             )}
           </div>
           <Field label="Setor" value={req.sectors ? `${req.sectors.code} — ${req.sectors.name}` : "—"} />
@@ -859,7 +1003,31 @@ function RequestDetail() {
                     </Button>
                   </div>
                 )
-              ) : (
+              ) : null}
+              {arrivablePOs.length > 0 && (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-sm text-muted-foreground">
+                    Ou registre a chegada de um pedido de compra inteiro (dá baixa em todos os itens vinculados a ele de uma vez):
+                  </p>
+                  <div className="space-y-1.5">
+                    {arrivablePOs.map((po: any) => {
+                      const count = (poItems ?? []).filter((pi: any) => pi.purchase_order_id === po.id).length;
+                      return (
+                        <div key={po.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                          <div>
+                            <span className="font-mono text-sm">{po.number}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{count} item{count > 1 ? "ns" : ""}</span>
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => registerArrivalByPO(po)} disabled={busy}>
+                            <Truck className="mr-2 h-3.5 w-3.5" />Registrar chegada
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {reqItems && reqItems.length === 0 && (
                 !req.arrived_at && (
                   <Button onClick={markArrivedLegacy} disabled={busy} variant="outline">
                     <Truck className="mr-2 h-4 w-4" />Registrar chegada do material
@@ -995,6 +1163,60 @@ function RequestDetail() {
           ))}
         </ul>
       </Card>
+
+      <Dialog open={poDialogOpen} onOpenChange={setPoDialogOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{poDialogTarget ? `Editar pedido ${poDialogTarget.number}` : "Novo pedido de compra"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Número do pedido *</Label>
+              <Input value={poDialogNumber} onChange={(e) => setPoDialogNumber(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">
+                Itens deste pedido (opcional — vincule pra dar baixa automática na chegada)
+              </Label>
+              <div className="space-y-2">
+                {(reqItems ?? []).map((it: any) => {
+                  const avail = poItemAvailability(it.id);
+                  const sel = poDialogSel[it.id] ?? { checked: false, qty: String(avail) };
+                  if (avail <= 0 && !sel.checked) return null;
+                  return (
+                    <div key={it.id} className="flex items-center gap-2 rounded-md border px-2 py-1.5">
+                      <Checkbox
+                        checked={sel.checked}
+                        onCheckedChange={(v) =>
+                          setPoDialogSel((p) => ({ ...p, [it.id]: { checked: !!v, qty: p[it.id]?.qty ?? String(avail) } }))
+                        }
+                      />
+                      <span className="flex-1 text-sm">{it.description}</span>
+                      <span className="text-xs text-muted-foreground">disp. {avail.toLocaleString("pt-BR")} {it.unit}</span>
+                      <Input
+                        type="number" step="0.01" min="0" max={avail}
+                        disabled={!sel.checked}
+                        value={sel.qty}
+                        onChange={(e) =>
+                          setPoDialogSel((p) => ({ ...p, [it.id]: { checked: p[it.id]?.checked ?? false, qty: e.target.value } }))
+                        }
+                        className="h-8 w-24 text-right"
+                      />
+                    </div>
+                  );
+                })}
+                {(reqItems ?? []).every((it: any) => poItemAvailability(it.id) <= 0 && !poDialogSel[it.id]?.checked) && (
+                  <p className="text-xs text-muted-foreground">Nenhum item com saldo comprado disponível pra vincular.</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPoDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={savePoDialog} disabled={busy || !poDialogNumber.trim()}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
