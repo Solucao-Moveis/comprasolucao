@@ -422,14 +422,17 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Linha 1a — percentual de cada um dos 3 cards acima, em quadros próprios */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Linha 1a — percentual de cada um dos 3 cards acima + quebra do Atrasadas, em quadros próprios */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card className="p-5 border-destructive/30 bg-destructive/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas</div>
           <div className="mt-2 text-2xl font-bold text-destructive">{pct(overdueCount, openCount)}</div>
           <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
-          {overdueCount > 0 && (
-            <div className="mt-3 space-y-1 border-t border-destructive/20 pt-2 text-xs">
+        </Card>
+        {overdueCount > 0 && (
+          <Card className="p-5 border-destructive/30 bg-destructive/5">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas — detalhe</div>
+            <div className="mt-3 space-y-1.5 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Ainda não comprada</span>
                 <span className="font-semibold text-destructive">{pct(overdueNotPurchasedCount, overdueCount)}</span>
@@ -439,8 +442,8 @@ function Dashboard() {
                 <span className="font-semibold text-destructive">{pct(overduePurchasedLateCount, overdueCount)}</span>
               </div>
             </div>
-          )}
-        </Card>
+          </Card>
+        )}
         <Card className="p-5 border-warning/30 bg-warning/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Compradas — em trânsito</div>
           <div className="mt-2 text-2xl font-bold text-warning">{pct(purchasedAwaitingCount, openCount)}</div>
