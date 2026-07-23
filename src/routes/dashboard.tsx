@@ -293,7 +293,7 @@ function Dashboard() {
 
       {/* Linha 1 — semáforo de prazo: total em aberto (base dos % abaixo) + 3 cards + detalhe do Atrasadas */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Card className="p-5">
+        <Card className="p-5 lg:row-span-2 flex flex-col justify-center">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total de SCs em aberto</div>
           <div className="mt-2 text-3xl font-bold">{openCount}</div>
           <p className="mt-1 text-xs text-muted-foreground">Base dos percentuais desta linha</p>
@@ -371,10 +371,7 @@ function Dashboard() {
           </div>
         </Card>
 
-      </div>
-
-      {/* Linha 1a — percentual de cada um dos 3 cards acima + quebra do Atrasadas, em quadros próprios */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {/* % de cada card acima + quebra do Atrasadas, na 2ª linha deste mesmo grid */}
         <Card className="p-5 border-destructive/30 bg-destructive/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas</div>
           <div className="mt-2 text-2xl font-bold text-destructive">{pct(overdueCount, openCount)}</div>
