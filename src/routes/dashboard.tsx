@@ -152,10 +152,16 @@ function Dashboard() {
     .sort((a: any, b: any) => b.daysEarly - a.daysEarly);
   const deliveredOnTimeCount = deliveredOnTimeList.length;
 
-  // 🔴 Compradas mas entregues com atraso (arrived_at > needed_by) — base para % do card "entregues no prazo"
-  const deliveredLateCount = list.filter(
-    (r: any) => r.arrived_at && (r.arrived_at as string).slice(0, 10) > r.needed_by
-  ).length;
+  // 🔴 Compradas mas entregues com atraso (arrived_at > needed_by)
+  const deliveredLateList = list
+    .filter((r: any) => r.arrived_at && (r.arrived_at as string).slice(0, 10) > r.needed_by)
+    .map((r: any) => {
+      const arrivedStr = (r.arrived_at as string).slice(0, 10);
+      const daysLate = Math.round((parseLocalDate(arrivedStr).getTime() - parseLocalDate(r.needed_by).getTime()) / 86400000);
+      return { ...r, daysLate };
+    })
+    .sort((a: any, b: any) => b.daysLate - a.daysLate);
+  const deliveredLateCount = deliveredLateList.length;
   const deliveredTotalCount = deliveredOnTimeCount + deliveredLateCount;
 
   // Quebra do card Atrasadas: ainda não comprada vs. comprada com entrega atrasada
@@ -228,6 +234,7 @@ function Dashboard() {
   const [showPurchasedAwaiting, setShowPurchasedAwaiting] = useState(false);
   const [showNotPurchased, setShowNotPurchased] = useState(false);
   const [showDeliveredOnTime, setShowDeliveredOnTime] = useState(false);
+  const [showDeliveredLate, setShowDeliveredLate] = useState(false);
   const [showSlaPurchased, setShowSlaPurchased] = useState(false);
   const [showSlaNotPurchased, setShowSlaNotPurchased] = useState(false);
 
@@ -290,8 +297,8 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral das solicitações de compra</p>
       </div>
 
-      {/* Linha 1 — semáforo de prazo: 4 cards lado a lado */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Linha 1 — semáforo de prazo: 3 cards lado a lado */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card
           role={overdueCount > 0 ? "button" : undefined}
           tabIndex={overdueCount > 0 ? 0 : undefined}
@@ -349,6 +356,15 @@ function Dashboard() {
           </div>
         </Card>
 
+      </div>
+
+      {/* Linha — entregas: total geral / no prazo / fora do prazo */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="p-5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (entregas)</div>
+          <div className="mt-2 text-3xl font-bold">{deliveredTotalCount}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Total de solicitações já entregues</p>
+        </Card>
         <Card
           role={deliveredOnTimeCount > 0 ? "button" : undefined}
           tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
@@ -358,12 +374,30 @@ function Dashboard() {
         >
           <div className="flex items-start justify-between">
             <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Chegaram no prazo</div>
               <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredOnTimeCount, deliveredTotalCount)} do total geral · clique para ver</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <PackageCheck className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+        <Card
+          role={deliveredLateCount > 0 ? "button" : undefined}
+          tabIndex={deliveredLateCount > 0 ? 0 : undefined}
+          onClick={() => deliveredLateCount > 0 && setShowDeliveredLate(true)}
+          onKeyDown={(e) => { if (deliveredLateCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredLate(true); } }}
+          className={deliveredLateCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não chegaram no prazo</div>
+              <div className={`mt-2 text-3xl font-bold ${deliveredLateCount > 0 ? "text-destructive" : "text-success"}`}>{deliveredLateCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredLateCount, deliveredTotalCount)} do total geral · clique para ver</p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${deliveredLateCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              <AlertTriangle className="h-5 w-5" />
             </div>
           </div>
         </Card>
@@ -371,7 +405,7 @@ function Dashboard() {
 
       {/* Quebra do Atrasadas em card próprio */}
       {overdueCount > 0 && (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Card className="p-5 border-destructive/30 bg-destructive/5">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — detalhe</div>
             <div className="mt-3 space-y-1.5 text-xs">
@@ -388,8 +422,8 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Linha 1a — percentual de cada um dos 4 cards acima, em quadros próprios */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Linha 1a — percentual de cada um dos 3 cards acima, em quadros próprios */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-5 border-destructive/30 bg-destructive/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas</div>
           <div className="mt-2 text-2xl font-bold text-destructive">{pct(overdueCount, openCount)}</div>
@@ -731,13 +765,13 @@ function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal: Compradas e entregues no prazo */}
+      {/* Modal: Chegaram no prazo */}
       <Dialog open={showDeliveredOnTime} onOpenChange={setShowDeliveredOnTime}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PackageCheck className="h-5 w-5 text-success" />
-              Compradas e entregues no prazo ({deliveredOnTimeCount})
+              Chegaram no prazo ({deliveredOnTimeCount})
             </DialogTitle>
           </DialogHeader>
           <p className="text-xs text-muted-foreground">Chegaram antes ou na data necessária.</p>
@@ -767,6 +801,49 @@ function Dashboard() {
                       <span className="font-semibold text-success">
                         {r.daysEarly === 0 ? "No dia" : `${r.daysEarly} ${r.daysEarly === 1 ? "dia" : "dias"} antes`}
                       </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Não chegaram no prazo */}
+      <Dialog open={showDeliveredLate} onOpenChange={setShowDeliveredLate}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Não chegaram no prazo ({deliveredLateCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Chegaram depois da data necessária.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Chegada</th>
+                  <th className="px-2 py-2">Necessário em</th>
+                  <th className="px-2 py-2 text-right">Atraso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveredLateList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs">{new Date(r.arrived_at).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-destructive">{r.daysLate} {r.daysLate === 1 ? "dia" : "dias"}</span>
                     </td>
                   </tr>
                 ))}
