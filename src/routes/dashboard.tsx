@@ -493,14 +493,20 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Linha 2 — contadores de status */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      {/* Linha 2 — total geral + contadores de status, cada um com % do total */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
+        <Card className="p-5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral</div>
+          <div className="mt-2 text-3xl font-bold">{list.length}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Todas as solicitações de compra</p>
+        </Card>
         {stats.map((s) => (
           <Card key={s.label} className="p-5">
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
                 <div className="mt-2 text-3xl font-bold">{s.value}</div>
+                <p className="mt-1 text-xs text-muted-foreground">{pct(s.value, list.length)} do total geral</p>
               </div>
               <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-${s.tone}/15 text-${s.tone}`}>
                 <s.icon className="h-5 w-5" />
