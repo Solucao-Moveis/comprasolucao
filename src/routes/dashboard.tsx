@@ -297,8 +297,8 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral das solicitações de compra</p>
       </div>
 
-      {/* Linha 1 — semáforo de prazo: 3 cards lado a lado */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Linha 1 — semáforo de prazo: 3 cards + detalhe do Atrasadas lado a lado */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card
           role={overdueCount > 0 ? "button" : undefined}
           tabIndex={overdueCount > 0 ? 0 : undefined}
@@ -317,6 +317,22 @@ function Dashboard() {
             </div>
           </div>
         </Card>
+
+        {overdueCount > 0 && (
+          <Card className="p-5 border-destructive/30 bg-destructive/5">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — detalhe</div>
+            <div className="mt-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Ainda não comprada</span>
+                <span className="font-semibold text-destructive">{overdueNotPurchasedCount}</span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-muted-foreground">Comprada — entrega atrasada</span>
+                <span className="font-semibold text-destructive">{overduePurchasedLateCount}</span>
+              </div>
+            </div>
+          </Card>
+        )}
 
         <Card
           role={purchasedAwaitingCount > 0 ? "button" : undefined}
@@ -357,25 +373,6 @@ function Dashboard() {
         </Card>
 
       </div>
-
-      {/* Quebra do Atrasadas em card próprio */}
-      {overdueCount > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card className="p-5 border-destructive/30 bg-destructive/5">
-            <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — detalhe</div>
-            <div className="mt-3 space-y-1.5 text-xs">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Ainda não comprada</span>
-                <span className="font-semibold text-destructive">{overdueNotPurchasedCount}</span>
-              </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Comprada — entrega atrasada</span>
-                <span className="font-semibold text-destructive">{overduePurchasedLateCount}</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* Linha 1a — percentual de cada um dos 3 cards acima + quebra do Atrasadas, em quadros próprios */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
