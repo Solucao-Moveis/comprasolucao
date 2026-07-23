@@ -141,6 +141,22 @@ function Dashboard() {
     .sort((a: any, b: any) => (a.hoursRemaining ?? Infinity) - (b.hoursRemaining ?? Infinity));
   const notPurchasedOnTimeCount = notPurchasedOnTimeList.length;
 
+  // 🔴 Fora do prazo de compra (>36h da aprovação, ainda não fechou — ex.: parcial travado)
+  // mas o "Necessário em" ainda não venceu, então não entra em Atrasadas nem em Compradas em trânsito.
+  const overSlaStuckList = list
+    .filter((r: any) => {
+      if (!["pendente", "aprovado", "parcial"].includes(r.status)) return false;
+      if (!r.decided_at || (now - new Date(r.decided_at).getTime()) / 36e5 <= SLA_HOURS) return false;
+      const alreadyOverdue = r.needed_by && !r.arrived_at && r.needed_by < todayStr;
+      return !alreadyOverdue;
+    })
+    .map((r: any) => ({
+      ...r,
+      hoursOver: Math.round((now - new Date(r.decided_at).getTime()) / 36e5 - SLA_HOURS),
+    }))
+    .sort((a: any, b: any) => b.hoursOver - a.hoursOver);
+  const overSlaStuckCount = overSlaStuckList.length;
+
   // 🟢 Compradas e entregues no prazo (arrived_at <= needed_by)
   const deliveredOnTimeList = list
     .filter((r: any) => r.arrived_at && (r.arrived_at as string).slice(0, 10) <= r.needed_by)
@@ -239,6 +255,7 @@ function Dashboard() {
   const [showDeliveredLate, setShowDeliveredLate] = useState(false);
   const [showSlaPurchased, setShowSlaPurchased] = useState(false);
   const [showSlaNotPurchased, setShowSlaNotPurchased] = useState(false);
+  const [showOverSlaStuck, setShowOverSlaStuck] = useState(false);
 
   const purchasesList = useMemo(
     () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
@@ -291,8 +308,8 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Visão geral das solicitações de compra</p>
       </div>
 
-      {/* Linha 1 — semáforo de prazo: total em aberto (base dos % abaixo) + 3 cards + detalhe do Atrasadas */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+      {/* Linha 1 — semáforo de prazo: total em aberto (base dos % abaixo) + 4 cards + detalhe do Atrasadas */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <Card className="p-5 lg:row-span-2 flex flex-col justify-center">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total de SCs em aberto</div>
           <div className="mt-2 text-3xl font-bold">{openCount}</div>
@@ -371,6 +388,25 @@ function Dashboard() {
           </div>
         </Card>
 
+        <Card
+          role={overSlaStuckCount > 0 ? "button" : undefined}
+          tabIndex={overSlaStuckCount > 0 ? 0 : undefined}
+          onClick={() => overSlaStuckCount > 0 && setShowOverSlaStuck(true)}
+          onKeyDown={(e) => { if (overSlaStuckCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowOverSlaStuck(true); } }}
+          className={overSlaStuckCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Fora do prazo de compra (&gt;36h)</div>
+              <div className={`mt-2 text-3xl font-bold ${overSlaStuckCount > 0 ? "text-destructive" : "text-success"}`}>{overSlaStuckCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{overSlaStuckCount > 0 ? "Aprovada há mais de 36h, compra ainda não fechou (ex.: parcial) · clique para ver" : "Nenhuma travada"}</p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overSlaStuckCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+
         {/* % de cada card acima + quebra do Atrasadas, na 2ª linha deste mesmo grid */}
         <Card className="p-5 border-destructive/30 bg-destructive/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Atrasadas</div>
@@ -400,6 +436,11 @@ function Dashboard() {
         <Card className="p-5 border-success/30 bg-success/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Não compradas — no prazo</div>
           <div className="mt-2 text-2xl font-bold text-success">{pct(notPurchasedOnTimeCount, openCount)}</div>
+          <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
+        </Card>
+        <Card className="p-5 border-destructive/30 bg-destructive/5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">% Fora do prazo de compra</div>
+          <div className="mt-2 text-2xl font-bold text-destructive">{pct(overSlaStuckCount, openCount)}</div>
           <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
         </Card>
       </div>
@@ -735,6 +776,49 @@ function Dashboard() {
                       ) : (
                         <span className={`font-semibold ${r.hoursRemaining <= 6 ? "text-warning" : "text-success"}`}>{r.hoursRemaining} h</span>
                       )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Fora do prazo de compra (>36h, ainda dentro do prazo de necessidade) */}
+      <Dialog open={showOverSlaStuck} onOpenChange={setShowOverSlaStuck}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Fora do prazo de compra — mais de 36h ({overSlaStuckCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">Aprovada há mais de 36h e a compra ainda não fechou (ex.: compra parcial travada). O "Necessário em" ainda não venceu, por isso não entram em Atrasadas.</p>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">SC</th>
+                  <th className="px-2 py-2">Descrição</th>
+                  <th className="px-2 py-2">Setor</th>
+                  <th className="px-2 py-2">Status</th>
+                  <th className="px-2 py-2">Aprovado em</th>
+                  <th className="px-2 py-2 text-right">Horas além do prazo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overSlaStuckList.map((r: any) => (
+                  <tr key={r.id} className="border-t">
+                    <td className="px-2 py-2 font-mono text-xs">
+                      <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
+                    </td>
+                    <td className="px-2 py-2">{r.items?.description ?? r.description}</td>
+                    <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
+                    <td className="px-2 py-2 text-xs capitalize text-muted-foreground">{r.status}</td>
+                    <td className="px-2 py-2 text-xs">{new Date(r.decided_at).toLocaleString("pt-BR")}</td>
+                    <td className="px-2 py-2 text-right">
+                      <span className="font-semibold text-destructive">{r.hoursOver} h</span>
                     </td>
                   </tr>
                 ))}
