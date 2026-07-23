@@ -299,18 +299,6 @@ function Dashboard() {
                 <span className="text-sm font-medium text-muted-foreground">{pct(overdueCount, openCount)}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{overdueCount > 0 ? "Passaram da data necessária e não chegaram · clique para ver" : "Nenhuma em atraso"}</p>
-              {overdueCount > 0 && (
-                <div className="mt-3 space-y-1 border-t border-destructive/20 pt-2 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Ainda não comprada</span>
-                    <span className="font-semibold text-destructive">{overdueNotPurchasedCount} ({pct(overdueNotPurchasedCount, overdueCount)})</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Comprada — entrega atrasada</span>
-                    <span className="font-semibold text-destructive">{overduePurchasedLateCount} ({pct(overduePurchasedLateCount, overdueCount)})</span>
-                  </div>
-                </div>
-              )}
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${overdueCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
               <AlertTriangle className="h-5 w-5" />
@@ -374,10 +362,9 @@ function Dashboard() {
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas e entregues no prazo</div>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-success">{deliveredOnTimeCount}</span>
-                <span className="text-sm font-medium text-muted-foreground">{pct(deliveredOnTimeCount, deliveredTotalCount)}</span>
+                <span className="text-sm font-medium text-muted-foreground" title="Percentual sobre o total de entregas (no prazo + atrasadas)">{pct(deliveredOnTimeCount, deliveredTotalCount)}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">{deliveredOnTimeCount > 0 ? "Chegaram antes ou na data necessária · clique para ver" : "Nenhuma registrada ainda"}</p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">% sobre o total de entregas (no prazo + atrasadas)</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <PackageCheck className="h-5 w-5" />
@@ -385,6 +372,28 @@ function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Linha 1b — quebra do card Atrasadas em quadros próprios */}
+      {overdueCount > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Card className="p-5 border-destructive/30 bg-destructive/5">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — ainda não comprada</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-destructive">{overdueNotPurchasedCount}</span>
+              <span className="text-sm font-medium text-muted-foreground">{pct(overdueNotPurchasedCount, overdueCount)}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">do total de atrasadas — ainda precisa comprar</p>
+          </Card>
+          <Card className="p-5 border-destructive/30 bg-destructive/5">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">Atrasadas — comprada, entrega atrasada</div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-destructive">{overduePurchasedLateCount}</span>
+              <span className="text-sm font-medium text-muted-foreground">{pct(overduePurchasedLateCount, overdueCount)}</span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">do total de atrasadas — já comprada, fornecedor atrasou a entrega</p>
+          </Card>
+        </div>
+      )}
 
       {/* Linha 2 — contadores de status */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
