@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from "recharts";
-import { Clock, CheckCircle2, XCircle, PackageCheck, TrendingUp, AlertTriangle, PiggyBank, Truck } from "lucide-react";
+import { Clock, CheckCircle2, PackageCheck, TrendingUp, AlertTriangle, PiggyBank, Truck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { useMemo, useState } from "react";
@@ -282,10 +282,6 @@ function Dashboard() {
     return `${m}/${y}`;
   };
 
-  const stats = [
-    { label: "Finalizadas", value: counts.finalizado, icon: PackageCheck, tone: "info" },
-  ];
-
   return (
     <div className="space-y-6">
       <div>
@@ -412,14 +408,14 @@ function Dashboard() {
       {/* Linha — entregas: total geral (entregas + compras) / no prazo / fora do prazo */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card className="p-5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (entregas)</div>
-          <div className="mt-2 text-3xl font-bold">{deliveredTotalCount}</div>
-          <p className="mt-1 text-xs text-muted-foreground">Total de solicitações já entregues</p>
-        </Card>
-        <Card className="p-5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (compras)</div>
           <div className="mt-2 text-3xl font-bold">{list.length}</div>
           <p className="mt-1 text-xs text-muted-foreground">Todas as solicitações de compra</p>
+        </Card>
+        <Card className="p-5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (entregas)</div>
+          <div className="mt-2 text-3xl font-bold">{deliveredTotalCount}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Total de solicitações já entregues</p>
         </Card>
         <Card
           role={deliveredOnTimeCount > 0 ? "button" : undefined}
@@ -498,25 +494,6 @@ function Dashboard() {
           </div>
         </Card>
       </div>
-
-      {/* Linha 2 — contadores de status, cada um com % do total geral */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label} className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</div>
-                <div className="mt-2 text-3xl font-bold">{s.value}</div>
-                <p className="mt-1 text-xs text-muted-foreground">{pct(s.value, list.length)} do total geral</p>
-              </div>
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-${s.tone}/15 text-${s.tone}`}>
-                <s.icon className="h-5 w-5" />
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="p-5">
