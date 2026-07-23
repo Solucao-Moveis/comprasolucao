@@ -172,10 +172,12 @@ function Dashboard() {
   const openCount = list.filter((r: any) => !CLOSED_STATUS.has(r.status)).length;
   const pct = (n: number, total: number) => (total > 0 ? `${Math.round((n / total) * 100)}%` : "—");
 
-  // SLA Aprovação → Compra: prazo máximo de 36h desde a aprovação
+  // SLA Aprovação → Compra: prazo máximo de 36h desde a aprovação.
+  // "parcial" (compra parcial, ainda não fechou tudo) conta como não-comprada
+  // pra esse prazo, mesmo já tendo um purchased_at de uma compra parcial.
   const approvedList = list.filter((r: any) => r.decided_at && r.status !== "negado");
   const purchasedWithinSlaList = approvedList
-    .filter((r: any) => r.purchased_at && (new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5 <= SLA_HOURS)
+    .filter((r: any) => ["comprado", "finalizado"].includes(r.status) && r.purchased_at && (new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5 <= SLA_HOURS)
     .map((r: any) => ({
       ...r,
       hoursToPurchase: Math.round((new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5),
@@ -183,7 +185,7 @@ function Dashboard() {
     .sort((a: any, b: any) => b.hoursToPurchase - a.hoursToPurchase);
   const purchasedWithinSlaCount = purchasedWithinSlaList.length;
   const notPurchasedOverSlaList = approvedList
-    .filter((r: any) => !r.purchased_at && (now - new Date(r.decided_at).getTime()) / 36e5 > SLA_HOURS)
+    .filter((r: any) => ["pendente", "aprovado", "parcial"].includes(r.status) && (now - new Date(r.decided_at).getTime()) / 36e5 > SLA_HOURS)
     .map((r: any) => ({
       ...r,
       hoursOver: Math.round((now - new Date(r.decided_at).getTime()) / 36e5 - SLA_HOURS),
@@ -405,8 +407,8 @@ function Dashboard() {
         </Card>
       </div>
 
-      {/* Linha — entregas: total geral (entregas + compras) / no prazo / fora do prazo */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Linha — entregas + SLA de compra: total geral (entregas + compras) / no prazo / fora do prazo */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
         <Card className="p-5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (compras)</div>
           <div className="mt-2 text-3xl font-bold">{list.length}</div>
@@ -453,10 +455,6 @@ function Dashboard() {
             </div>
           </div>
         </Card>
-      </div>
-
-      {/* Linha extra — SLA Aprovação → Compra (prazo máx. 36h desde a aprovação) */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card
           role={purchasedWithinSlaCount > 0 ? "button" : undefined}
           tabIndex={purchasedWithinSlaCount > 0 ? 0 : undefined}
@@ -468,7 +466,7 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas dentro do prazo (36h da aprovação)</div>
               <div className="mt-2 text-3xl font-bold text-success">{purchasedWithinSlaCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">Comprada em até 36h após a aprovação · clique para ver</p>
+              <p className="mt-1 text-xs text-muted-foreground">{pct(purchasedWithinSlaCount, list.length)} do total geral · clique para ver</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <CheckCircle2 className="h-5 w-5" />
@@ -486,7 +484,7 @@ function Dashboard() {
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas no prazo (36h da aprovação)</div>
               <div className={`mt-2 text-3xl font-bold ${notPurchasedOverSlaCount > 0 ? "text-destructive" : "text-success"}`}>{notPurchasedOverSlaCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOverSlaCount > 0 ? "Aprovadas há mais de 36h e ainda não compradas · clique para ver" : "Nenhuma fora do prazo"}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOverSlaCount > 0 ? `${pct(notPurchasedOverSlaCount, list.length)} do total geral · clique para ver` : "Nenhuma fora do prazo"}</p>
             </div>
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOverSlaCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
               <AlertTriangle className="h-5 w-5" />
