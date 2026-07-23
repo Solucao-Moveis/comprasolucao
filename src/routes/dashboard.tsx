@@ -336,15 +336,15 @@ function Dashboard() {
           tabIndex={purchasedAwaitingCount > 0 ? 0 : undefined}
           onClick={() => purchasedAwaitingCount > 0 && setShowPurchasedAwaiting(true)}
           onKeyDown={(e) => { if (purchasedAwaitingCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowPurchasedAwaiting(true); } }}
-          className={purchasedAwaitingCount > 0 ? "p-5 border-warning/50 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
+          className={purchasedAwaitingCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5 border-success/40 bg-success/5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Compradas — em trânsito</div>
-              <div className={`mt-2 text-3xl font-bold ${purchasedAwaitingCount > 0 ? "text-warning" : "text-success"}`}>{purchasedAwaitingCount}</div>
+              <div className="mt-2 text-3xl font-bold text-success">{purchasedAwaitingCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{purchasedAwaitingCount > 0 ? "Compradas, aguardando entrega · prazo não vencido · clique para ver" : "Nenhuma aguardando entrega"}</p>
             </div>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${purchasedAwaitingCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <Truck className="h-5 w-5" />
             </div>
           </div>
@@ -355,15 +355,15 @@ function Dashboard() {
           tabIndex={notPurchasedOnTimeCount > 0 ? 0 : undefined}
           onClick={() => notPurchasedOnTimeCount > 0 && setShowNotPurchased(true)}
           onKeyDown={(e) => { if (notPurchasedOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowNotPurchased(true); } }}
-          className={notPurchasedOnTimeCount > 0 ? "p-5 border-warning/30 bg-warning/5 cursor-pointer transition-colors hover:bg-warning/10" : "p-5 border-success/40 bg-success/5"}
+          className={notPurchasedOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5 border-success/40 bg-success/5"}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Não compradas — no prazo</div>
-              <div className={`mt-2 text-3xl font-bold ${notPurchasedOnTimeCount > 0 ? "text-warning" : "text-success"}`}>{notPurchasedOnTimeCount}</div>
+              <div className="mt-2 text-3xl font-bold text-success">{notPurchasedOnTimeCount}</div>
               <p className="mt-1 text-xs text-muted-foreground">{notPurchasedOnTimeCount > 0 ? "Aguardando aprovação ou dentro das 36h após aprovada · clique para ver" : "Nenhuma pendente dentro do prazo"}</p>
             </div>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${notPurchasedOnTimeCount > 0 ? "bg-warning/15 text-warning" : "bg-success/15 text-success"}`}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
               <Clock className="h-5 w-5" />
             </div>
           </div>
@@ -393,14 +393,14 @@ function Dashboard() {
             </div>
           </Card>
         )}
-        <Card className="p-5 border-warning/30 bg-warning/5">
+        <Card className="p-5 border-success/30 bg-success/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Compradas — em trânsito</div>
-          <div className="mt-2 text-2xl font-bold text-warning">{pct(purchasedAwaitingCount, openCount)}</div>
+          <div className="mt-2 text-2xl font-bold text-success">{pct(purchasedAwaitingCount, openCount)}</div>
           <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
         </Card>
-        <Card className="p-5 border-warning/20 bg-warning/5">
+        <Card className="p-5 border-success/30 bg-success/5">
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Não compradas — no prazo</div>
-          <div className="mt-2 text-2xl font-bold text-warning">{pct(notPurchasedOnTimeCount, openCount)}</div>
+          <div className="mt-2 text-2xl font-bold text-success">{pct(notPurchasedOnTimeCount, openCount)}</div>
           <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
         </Card>
       </div>
@@ -666,7 +666,7 @@ function Dashboard() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-warning" />
+              <Truck className="h-5 w-5 text-success" />
               Compradas — aguardando entrega ({purchasedAwaitingCount})
             </DialogTitle>
           </DialogHeader>
@@ -692,7 +692,7 @@ function Dashboard() {
                     <td className="px-2 py-2 text-xs text-muted-foreground">{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</td>
                     <td className="px-2 py-2 text-xs">{parseLocalDate(r.needed_by).toLocaleDateString("pt-BR")}</td>
                     <td className="px-2 py-2 text-right">
-                      <span className="font-semibold text-warning">{r.daysRemaining} {r.daysRemaining === 1 ? "dia" : "dias"}</span>
+                      <span className="font-semibold text-success">{r.daysRemaining} {r.daysRemaining === 1 ? "dia" : "dias"}</span>
                     </td>
                   </tr>
                 ))}
@@ -707,7 +707,7 @@ function Dashboard() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-warning" />
+              <Clock className="h-5 w-5 text-success" />
               Não compradas — dentro do prazo ({notPurchasedOnTimeCount})
             </DialogTitle>
           </DialogHeader>
@@ -738,7 +738,7 @@ function Dashboard() {
                       {r.hoursRemaining == null ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
-                        <span className={`font-semibold ${r.hoursRemaining <= 6 ? "text-destructive" : "text-warning"}`}>{r.hoursRemaining} h</span>
+                        <span className={`font-semibold ${r.hoursRemaining <= 6 ? "text-warning" : "text-success"}`}>{r.hoursRemaining} h</span>
                       )}
                     </td>
                   </tr>
