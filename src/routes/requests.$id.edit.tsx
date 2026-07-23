@@ -28,11 +28,12 @@ type ItemRow = {
   description: string;
   quantity: string;
   unit: string;
+  purchasedQuantity: number;
 };
 
 const newRow = (): ItemRow => ({
   uid: Math.random().toString(36).slice(2),
-  item_id: "", description: "", quantity: "", unit: "",
+  item_id: "", description: "", quantity: "", unit: "", purchasedQuantity: 0,
 });
 
 function EditRequest() {
@@ -105,6 +106,7 @@ function EditRequest() {
         description: it.description ?? "",
         quantity: String(it.quantity ?? ""),
         unit: it.unit ?? "",
+        purchasedQuantity: Number(it.purchased_quantity ?? 0),
       })));
     } else {
       // legacy request without request_items rows: seed from purchase_request fields
@@ -114,6 +116,7 @@ function EditRequest() {
         description: req.description ?? "",
         quantity: String(req.quantity ?? ""),
         unit: req.unit ?? "",
+        purchasedQuantity: 0,
       }]);
     }
     setInitialized(true);
@@ -124,11 +127,20 @@ function EditRequest() {
   // Edição dos campos (itens, justificativa, etc.) continua restrita ao dono (enquanto pendente) ou admin.
   // Anexos podem ser adicionados por qualquer usuário logado, em qualquer status.
   const canEditFields = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
+  const isBuyer = roles.includes("comprador") || roles.includes("admin");
 
   const set = (k: string, v: any) => setForm({ ...form, [k]: v });
   const updateRow = (uid: string, patch: Partial<ItemRow>) =>
     setRows((rs) => rs.map((r) => (r.uid === uid ? { ...r, ...patch } : r)));
-  const removeRow = (uid: string) => setRows((rs) => rs.length === 1 ? rs : rs.filter((r) => r.uid !== uid));
+  const removeRow = (uid: string) => setRows((rs) => {
+    if (rs.length === 1) return rs;
+    const row = rs.find((r) => r.uid === uid);
+    if (row && row.purchasedQuantity > 0) {
+      toast.error(`"${row.description}" já tem compra registrada e não pode ser removido do pedido.`);
+      return rs;
+    }
+    return rs.filter((r) => r.uid !== uid);
+  });
   const addRow = () => setRows((rs) => [...rs, newRow()]);
   const onPickItem = (uid: string, itemId: string) => {
     const it = items?.find((i: any) => i.id === itemId);
@@ -192,7 +204,13 @@ function EditRequest() {
 
       // Sync request_items: delete removed, update existing, insert new
       const keptIds = validRows.filter((r) => r.id).map((r) => r.id!);
-      const toDelete = (existingItems ?? []).filter((it: any) => !keptIds.includes(it.id)).map((it: any) => it.id);
+      const toDeleteItems = (existingItems ?? []).filter((it: any) => !keptIds.includes(it.id));
+      const blockedDelete = toDeleteItems.find((it: any) => Number(it.purchased_quantity ?? 0) > 0);
+      if (blockedDelete) {
+        setBusy(false);
+        return toast.error(`"${blockedDelete.description}" já tem compra registrada e não pode ser removido do pedido.`);
+      }
+      const toDelete = toDeleteItems.map((it: any) => it.id);
       if (toDelete.length > 0) {
         const { error: delErr } = await supabase.from("request_items").delete().in("id", toDelete);
         if (delErr) { setBusy(false); return toast.error(`Itens: ${delErr.message}`); }
@@ -291,7 +309,11 @@ function EditRequest() {
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-semibold text-muted-foreground">Item {idx + 1}</span>
                         {rows.length > 1 && (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(row.uid)}>
+                          <Button
+                            type="button" variant="ghost" size="sm" onClick={() => removeRow(row.uid)}
+                            disabled={row.purchasedQuantity > 0}
+                            title={row.purchasedQuantity > 0 ? "Já tem compra registrada — não pode ser removido" : undefined}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
@@ -309,7 +331,11 @@ function EditRequest() {
                         </div>
                         <div className="space-y-2">
                           <Label>Descrição *</Label>
-                          <Input value={row.description} onChange={(e) => updateRow(row.uid, { description: e.target.value })} />
+                          <Input
+                            value={row.description}
+                            disabled={!!row.item_id && !isBuyer}
+                            onChange={(e) => updateRow(row.uid, { description: e.target.value })}
+                          />
                         </div>
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">

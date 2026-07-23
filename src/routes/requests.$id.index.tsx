@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban, ClipboardCheck, ArrowRight, Paperclip } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, PackageCheck, Download, Send, Trash2, Pencil, ShoppingCart, Truck, Ban, ClipboardCheck, ArrowRight, Paperclip, Plus } from "lucide-react";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/requests/$id/")({
@@ -32,7 +32,10 @@ function RequestDetail() {
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [unitPrices, setUnitPrices] = useState<Record<string, string>>({});
   const [buyQty, setBuyQty] = useState<Record<string, string>>({});
-  const [poNumber, setPoNumber] = useState("");
+  const [arriveQty, setArriveQty] = useState<Record<string, string>>({});
+  const [expectedDelivery, setExpectedDelivery] = useState("");
+  const [newPoNumber, setNewPoNumber] = useState("");
+  const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
 
 
   const { data: req } = useQuery({
@@ -106,11 +109,22 @@ function RequestDetail() {
         .limit(1)
         .maybeSingle()).data,
   });
+  const { data: purchaseOrders } = useQuery({
+    queryKey: ["purchase_orders", id],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("purchase_orders")
+        .select("*")
+        .eq("request_id", id)
+        .order("created_at");
+      return data ?? [];
+    },
+  });
 
-  // mantém o input do pedido de compra em sincronia com o valor salvo
+  // mantém o input da previsão de entrega em sincronia com o valor salvo
   useEffect(() => {
-    setPoNumber((req as any)?.purchase_order_number ?? "");
-  }, [(req as any)?.purchase_order_number]);
+    setExpectedDelivery((req as any)?.expected_delivery_date ?? "");
+  }, [(req as any)?.expected_delivery_date]);
 
   if (!req) return <div className="text-muted-foreground">Carregando...</div>;
 
@@ -228,7 +242,8 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
-  const markArrived = async () => {
+  // solicitação legada, sem request_items: chegada continua tudo-ou-nada
+  const markArrivedLegacy = async () => {
     setBusy(true);
     const nowIso = new Date().toISOString();
     const { error } = await supabase.from("purchase_requests").update({
@@ -251,6 +266,63 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
+  // Registra a chegada (total ou parcial) por item, espelhando registerPartial:
+  // cada lançamento vira um registro em arrival_entries e acumula em
+  // request_items.arrived_quantity. Só recebe o que já foi comprado.
+  const registerArrival = async () => {
+    if (!reqItems || reqItems.length === 0) return toast.error("Sem itens");
+    const rows = reqItems.map((it: any) => {
+      const purchased = Number(it.purchased_quantity ?? 0);
+      const alreadyArrived = Number(it.arrived_quantity ?? 0);
+      const remaining = Math.max(purchased - alreadyArrived, 0);
+      const qtyRaw = arriveQty[it.id];
+      const qtyTyped = qtyRaw !== undefined && String(qtyRaw).trim() !== "";
+      const qty = qtyTyped ? parseFloat(String(qtyRaw).replace(",", ".")) : remaining;
+      return { it, alreadyArrived, remaining, qty, qtyTyped };
+    });
+    const arriving = rows.filter((r) => !isNaN(r.qty) && r.qty > 0);
+    if (arriving.length === 0) return toast.error("Informe a quantidade recebida de pelo menos um item");
+    for (const r of arriving) {
+      if (r.qty > r.remaining + 1e-9) {
+        return toast.error(`"${r.it.description}": quantidade acima do comprado ainda não recebido (${r.remaining} ${r.it.unit})`);
+      }
+    }
+    setBusy(true);
+    const entries = arriving.map((r) => ({
+      request_id: id, request_item_id: r.it.id, quantity: r.qty, created_by: user!.id,
+    }));
+    const { error: eErr } = await (supabase as any).from("arrival_entries").insert(entries);
+    if (eErr) { setBusy(false); return toast.error(eErr.message); }
+    for (const r of arriving) {
+      const { error } = await supabase.from("request_items")
+        .update({ arrived_quantity: r.alreadyArrived + r.qty } as any)
+        .eq("id", r.it.id);
+      if (error) { setBusy(false); return toast.error(error.message); }
+    }
+    const allArrived = rows.every((r) => {
+      const arrivedNow = r.alreadyArrived + (arriving.find((a) => a.it.id === r.it.id)?.qty ?? 0);
+      return arrivedNow >= Number(r.it.quantity) - 1e-9;
+    });
+    if (allArrived) {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase.from("purchase_requests").update({
+        arrived_at: nowIso, status: "finalizado", finalized_at: req.finalized_at ?? nowIso,
+      }).eq("id", id);
+      if (error) { setBusy(false); return toast.error(error.message); }
+      await supabase.from("notifications").insert({
+        user_id: req.requester_id, request_id: id, title: "Material recebido",
+        body: `O material da solicitação ${req.number} chegou.`,
+      });
+    }
+    setBusy(false);
+    toast.success(allArrived ? "Chegada registrada (completa)" : "Chegada parcial registrada");
+    setArriveQty({});
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["request_items", id] });
+    qc.invalidateQueries({ queryKey: ["arrival_entries", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+  };
+
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado") && !req.arrived_at;
@@ -266,6 +338,18 @@ function RequestDetail() {
     const qtyNow = qtyTyped ? (parseFloat(String(buyQty[it.id]).replace(",", ".")) || 0) : remaining;
     const buyingThis = hasPrice && qtyNow > 0; // só conta se tem preço
     return already + (buyingThis ? qtyNow : 0) >= Number(it.quantity) - 1e-9;
+  });
+  // existe algo já comprado que ainda não chegou? (define se mostra a seção de chegada por item)
+  const anyArrivable = !!reqItems && reqItems.some((it: any) =>
+    Number(it.purchased_quantity ?? 0) > Number(it.arrived_quantity ?? 0) + 1e-9);
+  // o que está preenchido na tabela completaria a chegada da solicitação? (define o rótulo do botão)
+  const arrivalWouldComplete = !!reqItems && reqItems.length > 0 && reqItems.every((it: any) => {
+    const purchased = Number(it.purchased_quantity ?? 0);
+    const alreadyArrived = Number(it.arrived_quantity ?? 0);
+    const remaining = Math.max(purchased - alreadyArrived, 0);
+    const qtyTyped = arriveQty[it.id] !== undefined && String(arriveQty[it.id]).trim() !== "";
+    const qtyNow = qtyTyped ? (parseFloat(String(arriveQty[it.id]).replace(",", ".")) || 0) : remaining;
+    return alreadyArrived + qtyNow >= Number(it.quantity) - 1e-9;
   });
   const canCancel = (req.requester_id === user?.id || roles.includes("admin")) &&
     (req.status === "pendente" || req.status === "aprovado" || req.status === "parcial" || req.status === "comprado");
@@ -311,18 +395,64 @@ function RequestDetail() {
     qc.invalidateQueries({ queryKey: ["comments", id] });
   };
 
-  // qualquer usuário logado pode preencher/editar o número do pedido de compra
-  const savePurchaseOrder = async () => {
+  // só comprador/admin preenche a previsão de entrega do fornecedor
+  const saveExpectedDelivery = async () => {
     setBusy(true);
-    const { error } = await (supabase as any).rpc("set_purchase_order", {
+    const { error } = await (supabase as any).rpc("set_expected_delivery", {
       p_request_id: id,
-      p_number: poNumber.trim() || null,
+      p_date: expectedDelivery || null,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Pedido de compra salvo");
+    toast.success("Previsão de entrega salva");
     qc.invalidateQueries({ queryKey: ["request", id] });
+  };
+
+  // comprador/admin registram um pedido de compra da lista (uma solicitação pode gerar mais de um)
+  const addPurchaseOrder = async () => {
+    const number = newPoNumber.trim();
+    if (!number) return toast.error("Informe o número do pedido");
+    setBusy(true);
+    const { error } = await (supabase as any).from("purchase_orders").insert({
+      request_id: id, number, created_by: user!.id,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setNewPoNumber("");
+    toast.success("Pedido de compra adicionado");
+    qc.invalidateQueries({ queryKey: ["purchase_orders", id] });
     qc.invalidateQueries({ queryKey: ["requests"] });
+  };
+
+  const removePurchaseOrder = async (poId: string) => {
+    setBusy(true);
+    const { error } = await (supabase as any).from("purchase_orders").delete().eq("id", poId);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["purchase_orders", id] });
+    qc.invalidateQueries({ queryKey: ["requests"] });
+  };
+
+  const attachInvoice = async (poId: string, file: File) => {
+    setInvoiceBusy(poId);
+    const path = `${user!.id}/po/${id}/${poId}/${Date.now()}-${file.name}`;
+    const { error: upErr } = await supabase.storage.from("request-attachments").upload(path, file);
+    if (upErr) { setInvoiceBusy(null); return toast.error(upErr.message); }
+    const { error } = await (supabase as any).from("purchase_orders").update({
+      invoice_path: path, invoice_uploaded_by: user!.id, invoice_uploaded_at: new Date().toISOString(),
+    }).eq("id", poId);
+    setInvoiceBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success("Nota fiscal anexada");
+    qc.invalidateQueries({ queryKey: ["purchase_orders", id] });
+  };
+
+  const downloadInvoice = async (path: string, number: string) => {
+    const { data, error } = await supabase.storage
+      .from("request-attachments")
+      .createSignedUrl(path, 60, { download: `NF-${number}` });
+    if (error || !data?.signedUrl) return toast.error("Erro ao baixar nota fiscal");
+    window.open(data.signedUrl, "_blank");
   };
 
   const downloadAtt = async (path: string, filename: string) => {
@@ -418,8 +548,11 @@ function RequestDetail() {
               const fullQty = Number(it.quantity);
               const already = Number(it.purchased_quantity ?? 0);
               const remaining = Math.max(fullQty - already, 0);
+              // cada linha só entra em modo de edição se ELA MESMA ainda tiver saldo a comprar —
+              // não basta o pedido como um todo estar em aberto (item já comprado não pode "sumir" o preço)
+              const rowEditable = canPurchase && remaining > 0;
               // em edição, só conta o preço digitado agora; fora de edição, o preço já registrado
-              const raw = editable ? (unitPrices[it.id] ?? "") : (it.unit_price != null ? String(it.unit_price) : "");
+              const raw = rowEditable ? (unitPrices[it.id] ?? "") : (it.unit_price != null ? String(it.unit_price) : "");
               const parsedPrice = parseFloat(String(raw).replace(",", "."));
               const price = isNaN(parsedPrice) ? null : parsedPrice;
               const qtyNowRaw = buyQty[it.id] ?? (remaining > 0 ? String(remaining) : "");
@@ -427,11 +560,14 @@ function RequestDetail() {
               const qtyNow = isNaN(parsedQty) ? 0 : parsedQty;
               // valor da linha: o que está comprando agora (modo edição) ou o que já foi comprado.
               // sem preço digitado, a linha não entra no total desta compra.
-              const refQty = editable ? qtyNow : already;
+              const refQty = rowEditable ? qtyNow : already;
               const total = price != null ? price * refQty : null;
               const avg = it.items?.avg_price != null ? Number(it.items.avg_price) : null;
               const save = price != null && avg != null && avg > 0 ? (avg - price) * refQty : null;
-              return { it, fullQty, already, remaining, price, qtyNow, total, avg, save };
+              const arrived = Number(it.arrived_quantity ?? 0);
+              const arrivedRemaining = Math.max(already - arrived, 0);
+              const rowArrivable = canPurchase && arrivedRemaining > 0;
+              return { it, fullQty, already, remaining, price, qtyNow, total, avg, save, rowEditable, arrived, arrivedRemaining, rowArrivable };
             });
             const grandTotal = rowsTotals.reduce((s, r) => s + (r.total ?? 0), 0);
             const grandSave = rowsTotals.reduce((s, r) => s + (r.save ?? 0), 0);
@@ -448,12 +584,13 @@ function RequestDetail() {
                         <th className="py-2 text-right font-medium">Qtd</th>
                         <th className="py-2 text-left font-medium">Un</th>
                         <th className="py-2 text-right font-medium">Comprado</th>
+                        <th className="py-2 text-right font-medium">Chegada</th>
                         <th className="py-2 text-right font-medium">{editable ? "Comprar agora" : "Preço un."}</th>
                         <th className="py-2 text-right font-medium">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {rowsTotals.map(({ it, fullQty, already, remaining, price, total, avg, save }, idx) => (
+                      {rowsTotals.map(({ it, fullQty, already, remaining, price, total, avg, save, rowEditable, arrived, arrivedRemaining, rowArrivable }, idx) => (
                         <tr key={it.id} className="border-b last:border-0">
                           <td className="py-2 text-muted-foreground">{idx + 1}</td>
                           <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
@@ -464,30 +601,41 @@ function RequestDetail() {
                             <span className={remaining <= 1e-9 ? "text-success font-medium" : ""}>
                               {already.toLocaleString("pt-BR")}/{fullQty.toLocaleString("pt-BR")}
                             </span>
-                            {editable && remaining > 0 && (
+                            {rowEditable && (
                               <div className="text-xs text-muted-foreground">faltam {remaining.toLocaleString("pt-BR")}</div>
                             )}
                           </td>
                           <td className="py-2 text-right">
-                            {editable ? (
-                              remaining > 0 ? (
-                                <div className="flex flex-col items-end gap-1">
-                                  <Input
-                                    type="number" step="0.01" min="0" max={remaining} placeholder={`Qtd (máx ${remaining})`}
-                                    value={buyQty[it.id] ?? String(remaining)}
-                                    onChange={(e) => setBuyQty((p) => ({ ...p, [it.id]: e.target.value }))}
-                                    className="h-8 w-28 text-right"
-                                  />
-                                  <Input
-                                    type="number" step="0.01" min="0" placeholder="Preço un."
-                                    value={unitPrices[it.id] ?? ""}
-                                    onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
-                                    className="h-8 w-28 text-right"
-                                  />
-                                </div>
-                              ) : (
-                                <span className="text-xs text-success">completo</span>
-                              )
+                            <span className={arrived >= fullQty - 1e-9 ? "text-success font-medium" : ""}>
+                              {arrived.toLocaleString("pt-BR")}/{fullQty.toLocaleString("pt-BR")}
+                            </span>
+                            {rowArrivable && (
+                              <div className="mt-1">
+                                <Input
+                                  type="number" step="0.01" min="0" max={arrivedRemaining} placeholder={`Qtd (máx ${arrivedRemaining})`}
+                                  value={arriveQty[it.id] ?? String(arrivedRemaining)}
+                                  onChange={(e) => setArriveQty((p) => ({ ...p, [it.id]: e.target.value }))}
+                                  className="h-8 w-28 text-right"
+                                />
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-2 text-right">
+                            {rowEditable ? (
+                              <div className="flex flex-col items-end gap-1">
+                                <Input
+                                  type="number" step="0.01" min="0" max={remaining} placeholder={`Qtd (máx ${remaining})`}
+                                  value={buyQty[it.id] ?? String(remaining)}
+                                  onChange={(e) => setBuyQty((p) => ({ ...p, [it.id]: e.target.value }))}
+                                  className="h-8 w-28 text-right"
+                                />
+                                <Input
+                                  type="number" step="0.01" min="0" placeholder="Preço un."
+                                  value={unitPrices[it.id] ?? ""}
+                                  onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
+                                  className="h-8 w-28 text-right"
+                                />
+                              </div>
                             ) : (
                               price != null ? `R$ ${price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"
                             )}
@@ -496,7 +644,7 @@ function RequestDetail() {
                                 Média: R$ {avg.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                               </div>
                             )}
-                            {save != null && save !== 0 && !editable && (
+                            {save != null && save !== 0 && !rowEditable && (
                               <div className={`text-xs ${save > 0 ? "text-success" : "text-destructive"}`}>
                                 {save > 0 ? "Economia" : "Acima"}: R$ {Math.abs(save).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                               </div>
@@ -510,14 +658,14 @@ function RequestDetail() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t">
-                        <td colSpan={7} className="py-2 text-right text-sm font-semibold">{editable ? "Total desta compra" : "Total comprado"}</td>
+                        <td colSpan={8} className="py-2 text-right text-sm font-semibold">{editable ? "Total desta compra" : "Total comprado"}</td>
                         <td className="py-2 text-right text-sm font-bold">
                           R$ {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                         </td>
                       </tr>
                       {!editable && anyPartial && req.purchase_amount != null && (
                         <tr>
-                          <td colSpan={7} className="py-1 text-right text-xs text-muted-foreground">Valor total já registrado</td>
+                          <td colSpan={8} className="py-1 text-right text-xs text-muted-foreground">Valor total já registrado</td>
                           <td className="py-1 text-right text-xs font-semibold">
                             R$ {Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
@@ -525,7 +673,7 @@ function RequestDetail() {
                       )}
                       {hasSavings && (
                         <tr>
-                          <td colSpan={7} className="py-1 text-right text-xs text-muted-foreground">Economia {editable ? "desta compra" : "total"} (vs. preço médio)</td>
+                          <td colSpan={8} className="py-1 text-right text-xs text-muted-foreground">Economia {editable ? "desta compra" : "total"} (vs. preço médio)</td>
                           <td className={`py-1 text-right text-xs font-semibold ${grandSave >= 0 ? "text-success" : "text-destructive"}`}>
                             R$ {grandSave.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </td>
@@ -558,30 +706,93 @@ function RequestDetail() {
         <Card className="p-6 space-y-4">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
           <div className="space-y-1.5">
-            <Label htmlFor="po_number" className="text-xs text-muted-foreground">Pedido de compra</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="po_number"
-                placeholder="Nº do pedido"
-                value={poNumber}
-                onChange={(e) => setPoNumber(e.target.value)}
-                className="h-8"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={savePurchaseOrder}
-                disabled={busy || poNumber.trim() === ((req as any).purchase_order_number ?? "")}
-              >
-                Salvar
-              </Button>
-            </div>
+            <Label className="text-xs text-muted-foreground">Pedidos de compra</Label>
+            {purchaseOrders && purchaseOrders.length > 0 ? (
+              <div className="space-y-1.5">
+                {purchaseOrders.map((po: any) => (
+                  <div key={po.id} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5">
+                    <span className="font-mono text-sm">{po.number}</span>
+                    <div className="flex items-center gap-1">
+                      {po.invoice_path ? (
+                        <Button size="sm" variant="ghost" className="h-7" onClick={() => downloadInvoice(po.invoice_path, po.number)}>
+                          <Download className="mr-1 h-3.5 w-3.5" /> Ver NF
+                        </Button>
+                      ) : canPurchase ? (
+                        <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-muted">
+                          <Paperclip className="h-3.5 w-3.5" />
+                          {invoiceBusy === po.id ? "Enviando..." : "Anexar NF"}
+                          <input
+                            type="file"
+                            className="hidden"
+                            disabled={invoiceBusy === po.id}
+                            onChange={(e) => {
+                              const f = e.target.files?.[0];
+                              if (f) attachInvoice(po.id, f);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Sem NF</span>
+                      )}
+                      {canPurchase && (
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removePurchaseOrder(po.id)}>
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              !canPurchase && <p className="text-sm text-muted-foreground">—</p>
+            )}
+            {canPurchase && (
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Nº do pedido"
+                  value={newPoNumber}
+                  onChange={(e) => setNewPoNumber(e.target.value)}
+                  className="h-8"
+                />
+                <Button size="sm" variant="outline" onClick={addPurchaseOrder} disabled={busy || !newPoNumber.trim()}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
+                </Button>
+              </div>
+            )}
           </div>
           <Field label="Setor" value={req.sectors ? `${req.sectors.code} — ${req.sectors.name}` : "—"} />
           <Field label="Solicitante" value={req.profiles?.full_name ?? req.profiles?.email ?? "—"} />
           <Field label="Data da solicitação" value={format(new Date(req.created_at), "dd/MM/yyyy HH:mm")} />
           <Field label="Data da aprovação" value={req.decided_at ? format(new Date(req.decided_at), "dd/MM/yyyy HH:mm") : "—"} />
           <Field label="Data da compra" value={req.purchased_at ? format(new Date(req.purchased_at), "dd/MM/yyyy HH:mm") : "—"} />
+          {canPurchase ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="expected_delivery" className="text-xs text-muted-foreground">Previsão de entrega do fornecedor</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="expected_delivery"
+                  type="date"
+                  value={expectedDelivery}
+                  onChange={(e) => setExpectedDelivery(e.target.value)}
+                  className="h-8"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={saveExpectedDelivery}
+                  disabled={busy || expectedDelivery === ((req as any).expected_delivery_date ?? "")}
+                >
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Field
+              label="Previsão de entrega do fornecedor"
+              value={(req as any).expected_delivery_date ? format(new Date(`${(req as any).expected_delivery_date}T00:00:00`), "dd/MM/yyyy") : "—"}
+            />
+          )}
           <Field label="Data de chegada" value={req.arrived_at ? format(new Date(req.arrived_at), "dd/MM/yyyy HH:mm") : "—"} />
         </Card>
       </div>
@@ -637,10 +848,23 @@ function RequestDetail() {
                   </div>
                 )
               )}
-              {!req.arrived_at && (
-                <Button onClick={markArrived} disabled={busy} variant="outline">
-                  <Truck className="mr-2 h-4 w-4" />Registrar chegada do material
-                </Button>
+              {reqItems && reqItems.length > 0 ? (
+                anyArrivable && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Informe a quantidade recebida de cada item na tabela acima (coluna Chegada). Você pode registrar parte agora e o restante depois — a solicitação só finaliza quando todos os itens chegarem.
+                    </p>
+                    <Button onClick={registerArrival} disabled={busy} variant="outline">
+                      <Truck className="mr-2 h-4 w-4" />{arrivalWouldComplete ? "Registrar chegada" : "Registrar chegada parcial"}
+                    </Button>
+                  </div>
+                )
+              ) : (
+                !req.arrived_at && (
+                  <Button onClick={markArrivedLegacy} disabled={busy} variant="outline">
+                    <Truck className="mr-2 h-4 w-4" />Registrar chegada do material
+                  </Button>
+                )
               )}
             </div>
           )}

@@ -36,7 +36,8 @@ const newRow = (): ItemRow => ({
 });
 
 function NewRequest() {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const isBuyer = roles.includes("comprador") || roles.includes("admin");
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -217,22 +218,24 @@ function NewRequest() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens</h3>
             <div className="flex gap-2">
-              <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button type="button" variant="ghost" size="sm">
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
-                  <form onSubmit={createItemInline} className="space-y-4">
-                    <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
-                    <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
-                    <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
-                    <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              {isBuyer && (
+                <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm">
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Cadastrar item
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Cadastrar novo item</DialogTitle></DialogHeader>
+                    <form onSubmit={createItemInline} className="space-y-4">
+                      <div className="space-y-2"><Label>Código *</Label><Input name="code" /></div>
+                      <div className="space-y-2"><Label>Descrição *</Label><Input name="description" /></div>
+                      <div className="space-y-2"><Label>Fornecedor</Label><Input name="supplier" /></div>
+                      <DialogFooter><Button type="submit" disabled={newItemBusy}>{newItemBusy ? "Salvando..." : "Salvar"}</Button></DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              )}
               <Button type="button" variant="outline" size="sm" onClick={addRow}>
                 <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar item
               </Button>
@@ -269,6 +272,7 @@ function NewRequest() {
                       <Input
                         value={row.description}
                         placeholder="Selecione o código ou digite a descrição"
+                        disabled={!!row.item_id && !isBuyer}
                         onChange={(e) => updateRow(row.uid, { description: e.target.value })}
                       />
                     </div>

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,18 +19,38 @@ import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 
+type RequestsSearch = {
+  q?: string;
+  status?: string;
+  sector?: string;
+  priority?: string;
+  from?: string;
+};
+
 export const Route = createFileRoute("/requests/")({
+  validateSearch: (s: Record<string, unknown>): RequestsSearch => ({
+    q: typeof s.q === "string" ? s.q : undefined,
+    status: typeof s.status === "string" ? s.status : undefined,
+    sector: typeof s.sector === "string" ? s.sector : undefined,
+    priority: typeof s.priority === "string" ? s.priority : undefined,
+    from: typeof s.from === "string" ? s.from : undefined,
+  }),
   component: () => <AppLayout><RequestsList /></AppLayout>,
 });
 
 function RequestsList() {
   const { user, roles } = useAuth();
   const qc = useQueryClient();
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState<string>("all");
-  const [sector, setSector] = useState<string>("all");
-  const [priority, setPriority] = useState<string>("all");
-  const [from, setFrom] = useState("");
+  const navigate = useNavigate({ from: Route.fullPath });
+  const search = Route.useSearch();
+  const q = search.q ?? "";
+  const status = search.status ?? "all";
+  const sector = search.sector ?? "all";
+  const priority = search.priority ?? "all";
+  const from = search.from ?? "";
+  const setFilter = (patch: Partial<RequestsSearch>) => {
+    navigate({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: sectors } = useQuery({
@@ -49,7 +69,9 @@ function RequestsList() {
       const ids = Array.from(new Set(data.map((r) => r.requester_id)));
       const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
       const map = new Map((profs ?? []).map((p) => [p.id, p]));
-      return data.map((r) => ({ ...r, profiles: map.get(r.requester_id) }));
+      const { data: poNumbers } = await (supabase as any).from("v_request_po_numbers").select("request_id,numbers_text");
+      const poMap = new Map((poNumbers ?? []).map((p: any) => [p.request_id, p.numbers_text]));
+      return data.map((r) => ({ ...r, profiles: map.get(r.requester_id), po_numbers: poMap.get(r.id) ?? r.purchase_order_number ?? null }));
     },
   });
 
@@ -62,7 +84,7 @@ function RequestsList() {
       
       if (q) {
         const s = q.toLowerCase();
-        const hay = `${r.number} ${r.purchase_order_number ?? ""} ${r.description} ${r.profiles?.full_name ?? ""} ${r.profiles?.email ?? ""}`.toLowerCase();
+        const hay = `${r.number} ${r.po_numbers ?? ""} ${r.description} ${r.profiles?.full_name ?? ""} ${r.profiles?.email ?? ""}`.toLowerCase();
         if (!hay.includes(s)) return false;
       }
       return true;
@@ -263,9 +285,9 @@ ${rows.map((r: any) => {
         <div className="grid gap-3 md:grid-cols-6">
           <div className="relative md:col-span-2">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar por número, pedido de compra, descrição..." className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input placeholder="Buscar por número, pedido de compra, descrição..." className="pl-9" value={q} onChange={(e) => setFilter({ q: e.target.value || undefined })} />
           </div>
-          <Select value={status} onValueChange={setStatus}>
+          <Select value={status} onValueChange={(v) => setFilter({ status: v === "all" ? undefined : v })}>
             <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos status</SelectItem>
@@ -278,14 +300,14 @@ ${rows.map((r: any) => {
               <SelectItem value="cancelado">Cancelado</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={sector} onValueChange={setSector}>
+          <Select value={sector} onValueChange={(v) => setFilter({ sector: v === "all" ? undefined : v })}>
             <SelectTrigger><SelectValue placeholder="Setor" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos setores</SelectItem>
               {sectors?.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={priority} onValueChange={setPriority}>
+          <Select value={priority} onValueChange={(v) => setFilter({ priority: v === "all" ? undefined : v })}>
             <SelectTrigger><SelectValue placeholder="Prioridade" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas prioridades</SelectItem>
@@ -294,7 +316,7 @@ ${rows.map((r: any) => {
               <SelectItem value="alta">Alta</SelectItem>
             </SelectContent>
           </Select>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input type="date" value={from} onChange={(e) => setFilter({ from: e.target.value || undefined })} />
         </div>
       </Card>
 
@@ -330,8 +352,8 @@ ${rows.map((r: any) => {
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">
                     <Link to="/requests/$id" params={{ id: r.id }} className="text-primary hover:underline">{r.number}</Link>
-                    {r.purchase_order_number && (
-                      <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">Pedido: {r.purchase_order_number}</div>
+                    {r.po_numbers && (
+                      <div className="mt-0.5 text-[11px] font-normal text-muted-foreground">Pedido: {r.po_numbers}</div>
                     )}
                   </td>
                   <td className="hidden px-4 py-3 whitespace-nowrap text-xs text-muted-foreground md:table-cell">{format(new Date(r.created_at), "dd/MM/yyyy")}</td>
