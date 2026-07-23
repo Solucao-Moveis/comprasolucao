@@ -358,51 +358,6 @@ function Dashboard() {
 
       </div>
 
-      {/* Linha — entregas: total geral / no prazo / fora do prazo */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-5">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (entregas)</div>
-          <div className="mt-2 text-3xl font-bold">{deliveredTotalCount}</div>
-          <p className="mt-1 text-xs text-muted-foreground">Total de solicitações já entregues</p>
-        </Card>
-        <Card
-          role={deliveredOnTimeCount > 0 ? "button" : undefined}
-          tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
-          onClick={() => deliveredOnTimeCount > 0 && setShowDeliveredOnTime(true)}
-          onKeyDown={(e) => { if (deliveredOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredOnTime(true); } }}
-          className={deliveredOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Chegaram no prazo</div>
-              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredOnTimeCount, deliveredTotalCount)} do total geral · clique para ver</p>
-            </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
-              <PackageCheck className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-        <Card
-          role={deliveredLateCount > 0 ? "button" : undefined}
-          tabIndex={deliveredLateCount > 0 ? 0 : undefined}
-          onClick={() => deliveredLateCount > 0 && setShowDeliveredLate(true)}
-          onKeyDown={(e) => { if (deliveredLateCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredLate(true); } }}
-          className={deliveredLateCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não chegaram no prazo</div>
-              <div className={`mt-2 text-3xl font-bold ${deliveredLateCount > 0 ? "text-destructive" : "text-success"}`}>{deliveredLateCount}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredLateCount, deliveredTotalCount)} do total geral · clique para ver</p>
-            </div>
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${deliveredLateCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
       {/* Quebra do Atrasadas em card próprio */}
       {overdueCount > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -453,6 +408,51 @@ function Dashboard() {
           <div className="text-xs uppercase tracking-wide text-muted-foreground">% Não compradas — no prazo</div>
           <div className="mt-2 text-2xl font-bold text-warning">{pct(notPurchasedOnTimeCount, openCount)}</div>
           <p className="mt-1 text-xs text-muted-foreground">do total de SCs em aberto</p>
+        </Card>
+      </div>
+
+      {/* Linha — entregas: total geral / no prazo / fora do prazo */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="p-5">
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Total geral (entregas)</div>
+          <div className="mt-2 text-3xl font-bold">{deliveredTotalCount}</div>
+          <p className="mt-1 text-xs text-muted-foreground">Total de solicitações já entregues</p>
+        </Card>
+        <Card
+          role={deliveredOnTimeCount > 0 ? "button" : undefined}
+          tabIndex={deliveredOnTimeCount > 0 ? 0 : undefined}
+          onClick={() => deliveredOnTimeCount > 0 && setShowDeliveredOnTime(true)}
+          onKeyDown={(e) => { if (deliveredOnTimeCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredOnTime(true); } }}
+          className={deliveredOnTimeCount > 0 ? "p-5 border-success/40 bg-success/5 cursor-pointer transition-colors hover:bg-success/10" : "p-5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Chegaram no prazo</div>
+              <div className="mt-2 text-3xl font-bold text-success">{deliveredOnTimeCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredOnTimeCount, deliveredTotalCount)} do total geral · clique para ver</p>
+            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/15 text-success">
+              <PackageCheck className="h-5 w-5" />
+            </div>
+          </div>
+        </Card>
+        <Card
+          role={deliveredLateCount > 0 ? "button" : undefined}
+          tabIndex={deliveredLateCount > 0 ? 0 : undefined}
+          onClick={() => deliveredLateCount > 0 && setShowDeliveredLate(true)}
+          onKeyDown={(e) => { if (deliveredLateCount > 0 && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setShowDeliveredLate(true); } }}
+          className={deliveredLateCount > 0 ? "p-5 border-destructive/50 bg-destructive/5 cursor-pointer transition-colors hover:bg-destructive/10" : "p-5 border-success/40 bg-success/5"}
+        >
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">Não chegaram no prazo</div>
+              <div className={`mt-2 text-3xl font-bold ${deliveredLateCount > 0 ? "text-destructive" : "text-success"}`}>{deliveredLateCount}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{pct(deliveredLateCount, deliveredTotalCount)} do total geral · clique para ver</p>
+            </div>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${deliveredLateCount > 0 ? "bg-destructive/15 text-destructive" : "bg-success/15 text-success"}`}>
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+          </div>
         </Card>
       </div>
 
