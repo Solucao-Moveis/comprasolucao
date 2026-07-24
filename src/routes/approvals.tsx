@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { StatusBadge, PriorityBadge, UrgenteBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/lib/auth";
 import { format } from "date-fns";
 import { CheckSquare, ArrowRight } from "lucide-react";
@@ -77,6 +77,7 @@ function Approvals() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="flex gap-2">
+                  {r.urgente && <UrgenteBadge />}
                   <PriorityBadge priority={r.priority} />
                   <StatusBadge status={r.status} />
                 </div>

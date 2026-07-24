@@ -50,3 +50,11 @@ export function ClassificationBadge({ classification }: { classification: keyof 
     </span>
   );
 }
+
+export function UrgenteBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-rose-600/30 bg-rose-600/15 px-2.5 py-0.5 text-xs font-medium text-rose-600">
+      Urgente
+    </span>
+  );
+}

@@ -7,13 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { StatusBadge, PriorityBadge, ClassificationBadge } from "@/components/StatusBadge";
+import { StatusBadge, PriorityBadge, ClassificationBadge, UrgenteBadge } from "@/components/StatusBadge";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
@@ -43,6 +43,9 @@ function RequestDetail() {
   const [poDialogTarget, setPoDialogTarget] = useState<any | null>(null); // null = novo pedido; objeto = editando um existente
   const [poDialogNumber, setPoDialogNumber] = useState("");
   const [poDialogSel, setPoDialogSel] = useState<Record<string, { checked: boolean; qty: string }>>({});
+  const [itemRejections, setItemRejections] = useState<Record<string, { rejected: boolean; reason: string }>>({});
+  const [revertReason, setRevertReason] = useState("");
+  const [revertDialogOpen, setRevertDialogOpen] = useState(false);
 
 
   const { data: req } = useQuery({
@@ -147,6 +150,18 @@ function RequestDetail() {
     setExpectedDelivery((req as any)?.expected_delivery_date ?? "");
   }, [(req as any)?.expected_delivery_date]);
 
+  // preenche o estado de rejeição de item a partir do que já está salvo, sem sobrescrever edição em curso
+  useEffect(() => {
+    if (!reqItems) return;
+    setItemRejections((prev) => {
+      const next = { ...prev };
+      reqItems.forEach((it: any) => {
+        if (!(it.id in next)) next[it.id] = { rejected: !!it.rejected, reason: it.rejection_reason ?? "" };
+      });
+      return next;
+    });
+  }, [reqItems]);
+
   if (!req) return <div className="text-muted-foreground">Carregando...</div>;
 
   const isApprover = req.sectors?.approver_id === user?.id || roles.includes("admin");
@@ -155,7 +170,24 @@ function RequestDetail() {
   const canFinalize = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado");
 
   const decide = async (newStatus: "aprovado" | "negado") => {
+    if (reqItems) {
+      const missingReason = reqItems.find((it: any) => itemRejections[it.id]?.rejected && !itemRejections[it.id]?.reason.trim());
+      if (missingReason) return toast.error(`Informe o motivo da rejeição de "${missingReason.description}"`);
+    }
     setBusy(true);
+    if (reqItems) {
+      for (const it of reqItems as any[]) {
+        const rj = itemRejections[it.id];
+        if (!rj) continue;
+        const changed = !!it.rejected !== rj.rejected || (it.rejection_reason ?? "") !== rj.reason.trim();
+        if (!changed) continue;
+        const { error: riErr } = await supabase.from("request_items").update({
+          rejected: rj.rejected,
+          rejection_reason: rj.rejected ? rj.reason.trim() : null,
+        } as any).eq("id", it.id);
+        if (riErr) { setBusy(false); return toast.error(`Item "${it.description}": ${riErr.message}`); }
+      }
+    }
     const { error } = await supabase.from("purchase_requests").update({
       status: newStatus, approver_id: user!.id, decided_at: new Date().toISOString(), decision_note: decisionNote || null,
     }).eq("id", id);
@@ -163,6 +195,40 @@ function RequestDetail() {
     if (error) return toast.error(error.message);
     toast.success(newStatus === "aprovado" ? "Solicitação aprovada" : "Solicitação negada");
     qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["request_items", id] });
+    qc.invalidateQueries({ queryKey: ["history", id] });
+  };
+
+  // Reverte uma aprovação já feita (ex.: urgência marcada sem cumprir os requisitos).
+  // Só permitido enquanto nada foi comprado ainda. Zera as rejeições de item também,
+  // pra o aprovador decidir tudo de novo.
+  const canRevert = req.status === "aprovado" && !req.purchased_at &&
+    (reqItems ?? []).every((it: any) => Number(it.purchased_quantity ?? 0) === 0);
+
+  const revertApproval = async () => {
+    if (!revertReason.trim()) return toast.error("Informe o motivo da reversão");
+    setBusy(true);
+    if (reqItems && reqItems.length > 0) {
+      const { error: riErr } = await supabase.from("request_items")
+        .update({ rejected: false, rejection_reason: null } as any)
+        .eq("request_id", id);
+      if (riErr) { setBusy(false); return toast.error(riErr.message); }
+    }
+    const { error } = await supabase.from("purchase_requests").update({
+      status: "pendente", decided_at: null, approver_id: null, decision_note: null,
+    }).eq("id", id);
+    if (error) { setBusy(false); return toast.error(error.message); }
+    await supabase.from("request_comments").insert({
+      request_id: id, user_id: user!.id, content: `Aprovação revertida: ${revertReason.trim()}`,
+    });
+    setBusy(false);
+    setRevertDialogOpen(false);
+    setRevertReason("");
+    setItemRejections({});
+    toast.success("Aprovação revertida — solicitação voltou para pendente");
+    qc.invalidateQueries({ queryKey: ["request", id] });
+    qc.invalidateQueries({ queryKey: ["request_items", id] });
+    qc.invalidateQueries({ queryKey: ["comments", id] });
     qc.invalidateQueries({ queryKey: ["history", id] });
   };
 
@@ -200,8 +266,9 @@ function RequestDetail() {
   // informa-se a quantidade comprada agora e o preço unitário. Cada lançamento
   // vira um registro em purchase_entries e acumula em request_items.purchased_quantity.
   const registerPartial = async () => {
-    if (!reqItems || reqItems.length === 0) return toast.error("Sem itens");
-    const rows = reqItems.map((it: any) => {
+    const activeReqItems = (reqItems ?? []).filter((it: any) => !it.rejected);
+    if (activeReqItems.length === 0) return toast.error("Sem itens para comprar (todos rejeitados)");
+    const rows = activeReqItems.map((it: any) => {
       const already = Number(it.purchased_quantity ?? 0);
       const remaining = Number(it.quantity) - already;
       // preço só conta se foi digitado agora nesta tela
@@ -291,8 +358,9 @@ function RequestDetail() {
   // cada lançamento vira um registro em arrival_entries e acumula em
   // request_items.arrived_quantity. Só recebe o que já foi comprado.
   const registerArrival = async () => {
-    if (!reqItems || reqItems.length === 0) return toast.error("Sem itens");
-    const rows = reqItems.map((it: any) => {
+    const activeReqItems = (reqItems ?? []).filter((it: any) => !it.rejected);
+    if (activeReqItems.length === 0) return toast.error("Sem itens para receber (todos rejeitados)");
+    const rows = activeReqItems.map((it: any) => {
       const purchased = Number(it.purchased_quantity ?? 0);
       const alreadyArrived = Number(it.arrived_quantity ?? 0);
       const remaining = Math.max(purchased - alreadyArrived, 0);
@@ -372,7 +440,7 @@ function RequestDetail() {
     const { error: poErr } = await (supabase as any).from("purchase_orders")
       .update({ arrived_at: new Date().toISOString() }).eq("id", po.id);
     if (poErr) { setBusy(false); return toast.error(poErr.message); }
-    const allArrived = (reqItems ?? []).every((it: any) => {
+    const allArrived = (reqItems ?? []).filter((it: any) => !it.rejected).every((it: any) => {
       const bump = toArrive.find((r: any) => r.it.id === it.id)?.qty ?? 0;
       return Number(it.arrived_quantity ?? 0) + bump >= Number(it.quantity) - 1e-9;
     });
@@ -399,10 +467,12 @@ function RequestDetail() {
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado") && !req.arrived_at;
-  const itemsFullyPurchased = !!reqItems && reqItems.length > 0 &&
-    reqItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
+  // itens rejeitados na aprovação ficam fora dos cálculos de "tudo comprado"/"tudo chegado"
+  const activeItems = (reqItems ?? []).filter((it: any) => !it.rejected);
+  const itemsFullyPurchased = activeItems.length === 0 ||
+    activeItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
   // o que está preenchido na tabela completaria a solicitação? (define o rótulo do botão)
-  const purchaseWouldComplete = !!reqItems && reqItems.length > 0 && reqItems.every((it: any) => {
+  const purchaseWouldComplete = activeItems.length === 0 || activeItems.every((it: any) => {
     const already = Number(it.purchased_quantity ?? 0);
     const remaining = Math.max(Number(it.quantity) - already, 0);
     const priceRaw = unitPrices[it.id];
@@ -413,13 +483,13 @@ function RequestDetail() {
     return already + (buyingThis ? qtyNow : 0) >= Number(it.quantity) - 1e-9;
   });
   // existe algo já comprado que ainda não chegou? (define se mostra a seção de chegada por item)
-  const anyArrivable = !!reqItems && reqItems.some((it: any) =>
+  const anyArrivable = activeItems.some((it: any) =>
     Number(it.purchased_quantity ?? 0) > Number(it.arrived_quantity ?? 0) + 1e-9);
   // pedidos de compra com itens vinculados e ainda não recebidos (define a seção de chegada por pedido)
   const arrivablePOs = (purchaseOrders ?? []).filter((po: any) =>
     !po.arrived_at && (poItems ?? []).some((pi: any) => pi.purchase_order_id === po.id));
   // o que está preenchido na tabela completaria a chegada da solicitação? (define o rótulo do botão)
-  const arrivalWouldComplete = !!reqItems && reqItems.length > 0 && reqItems.every((it: any) => {
+  const arrivalWouldComplete = activeItems.length === 0 || activeItems.every((it: any) => {
     const purchased = Number(it.purchased_quantity ?? 0);
     const alreadyArrived = Number(it.arrived_quantity ?? 0);
     const remaining = Math.max(purchased - alreadyArrived, 0);
@@ -661,6 +731,7 @@ function RequestDetail() {
           <h1 className="mt-1 text-2xl font-bold">{req.description.slice(0, 80)}</h1>
         </div>
         <div className="flex items-center gap-2">
+          {(req as any).urgente && <UrgenteBadge />}
           <PriorityBadge priority={req.priority} />
           <StatusBadge status={req.status} />
           {evaluation && (
@@ -674,16 +745,18 @@ function RequestDetail() {
       <div className="grid gap-5 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-2 space-y-5">
           {reqItems && reqItems.length > 0 ? (() => {
-            const fullyPurchased = reqItems.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
+            const nonRejected = reqItems.filter((it: any) => !it.rejected);
+            const fullyPurchased = nonRejected.length === 0 || nonRejected.every((it: any) => Number(it.purchased_quantity ?? 0) >= Number(it.quantity) - 1e-9);
             const editable = canPurchase && !fullyPurchased;
-            const anyPartial = reqItems.some((it: any) => Number(it.purchased_quantity ?? 0) > 0);
+            const anyPartial = nonRejected.some((it: any) => Number(it.purchased_quantity ?? 0) > 0);
             const rowsTotals = reqItems.map((it: any) => {
               const fullQty = Number(it.quantity);
               const already = Number(it.purchased_quantity ?? 0);
               const remaining = Math.max(fullQty - already, 0);
               // cada linha só entra em modo de edição se ELA MESMA ainda tiver saldo a comprar —
               // não basta o pedido como um todo estar em aberto (item já comprado não pode "sumir" o preço)
-              const rowEditable = canPurchase && remaining > 0;
+              // itens rejeitados na aprovação nunca ficam editáveis
+              const rowEditable = canPurchase && remaining > 0 && !it.rejected;
               // em edição, só conta o preço digitado agora; fora de edição, o preço já registrado
               const raw = rowEditable ? (unitPrices[it.id] ?? "") : (it.unit_price != null ? String(it.unit_price) : "");
               const parsedPrice = parseFloat(String(raw).replace(",", "."));
@@ -699,7 +772,7 @@ function RequestDetail() {
               const save = price != null && avg != null && avg > 0 ? (avg - price) * refQty : null;
               const arrived = Number(it.arrived_quantity ?? 0);
               const arrivedRemaining = Math.max(already - arrived, 0);
-              const rowArrivable = canPurchase && arrivedRemaining > 0;
+              const rowArrivable = canPurchase && arrivedRemaining > 0 && !it.rejected;
               return { it, fullQty, already, remaining, price, qtyNow, total, avg, save, rowEditable, arrived, arrivedRemaining, rowArrivable };
             });
             const grandTotal = rowsTotals.reduce((s, r) => s + (r.total ?? 0), 0);
@@ -724,10 +797,15 @@ function RequestDetail() {
                     </thead>
                     <tbody>
                       {rowsTotals.map(({ it, fullQty, already, remaining, price, total, avg, save, rowEditable, arrived, arrivedRemaining, rowArrivable }, idx) => (
-                        <tr key={it.id} className="border-b last:border-0">
+                        <tr key={it.id} className={`border-b last:border-0${it.rejected ? " opacity-60" : ""}`}>
                           <td className="py-2 text-muted-foreground">{idx + 1}</td>
                           <td className="py-2 font-mono text-xs">{it.items?.code ?? "—"}</td>
-                          <td className="py-2">{it.description}</td>
+                          <td className="py-2">
+                            {it.description}
+                            {it.rejected && (
+                              <div className="mt-0.5 text-xs text-destructive">Rejeitado{it.rejection_reason ? `: ${it.rejection_reason}` : ""}</div>
+                            )}
+                          </td>
                           <td className="py-2 text-right">{fullQty.toLocaleString("pt-BR")}</td>
                           <td className="py-2">{it.unit}</td>
                           <td className="py-2 text-right">
@@ -946,6 +1024,36 @@ function RequestDetail() {
           <h3 className="text-sm font-semibold">Ações</h3>
           {canDecide && (
             <>
+              {reqItems && reqItems.length > 0 && (
+                <div className="space-y-3 rounded-md border p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    Marque os itens que devem ser rejeitados (o restante segue para aprovação)
+                  </p>
+                  {reqItems.map((it: any) => {
+                    const rj = itemRejections[it.id] ?? { rejected: false, reason: "" };
+                    return (
+                      <div key={it.id} className="space-y-1.5 border-b pb-2 last:border-0">
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={rj.rejected}
+                            onCheckedChange={(v) => setItemRejections((p) => ({ ...p, [it.id]: { rejected: !!v, reason: p[it.id]?.reason ?? "" } }))}
+                          />
+                          <span className={rj.rejected ? "text-muted-foreground line-through" : ""}>{it.description}</span>
+                          <span className="text-xs text-muted-foreground">({it.quantity} {it.unit})</span>
+                        </label>
+                        {rj.rejected && (
+                          <Textarea
+                            placeholder="Motivo da rejeição *"
+                            rows={2}
+                            value={rj.reason}
+                            onChange={(e) => setItemRejections((p) => ({ ...p, [it.id]: { rejected: true, reason: e.target.value } }))}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
               <Textarea placeholder="Nota (opcional)" value={decisionNote} onChange={(e) => setDecisionNote(e.target.value)} rows={2} />
               <div className="flex gap-2">
                 <Button onClick={() => decide("aprovado")} disabled={busy} className="bg-success text-success-foreground hover:bg-success/90">
@@ -956,6 +1064,25 @@ function RequestDetail() {
                 </Button>
               </div>
             </>
+          )}
+          {canRevert && (
+            <Dialog open={revertDialogOpen} onOpenChange={setRevertDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={busy}>
+                  <XCircle className="mr-2 h-4 w-4" />Reverter aprovação
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Reverter aprovação</DialogTitle></DialogHeader>
+                <p className="text-sm text-muted-foreground">
+                  A solicitação volta para "pendente" e as rejeições de item são zeradas — o aprovador decide tudo de novo.
+                </p>
+                <Textarea placeholder="Motivo da reversão *" value={revertReason} onChange={(e) => setRevertReason(e.target.value)} rows={3} />
+                <DialogFooter>
+                  <Button onClick={revertApproval} disabled={busy} variant="destructive">Confirmar reversão</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
           {canPurchase && (
             <div className="space-y-3">

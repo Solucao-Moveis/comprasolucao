@@ -12,11 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Switch } from "@/components/ui/switch";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Paperclip, X, Plus, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SLA_ENTREGA_DIAS } from "@/lib/sla";
 
 export const Route = createFileRoute("/requests/new")({
   component: () => <AppLayout><NewRequest /></AppLayout>,
@@ -45,6 +47,18 @@ function NewRequest() {
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [newItemBusy, setNewItemBusy] = useState(false);
   const [rows, setRows] = useState<ItemRow[]>([newRow()]);
+  const [tipoCompra, setTipoCompra] = useState("");
+  const [neededBy, setNeededBy] = useState("");
+  const [urgente, setUrgente] = useState(false);
+  const [urgenciaJustificativa, setUrgenciaJustificativa] = useState("");
+
+  const prazoAvisoDias = urgente ? 1 : (tipoCompra === "materia_prima" || tipoCompra === "insumos_outros") ? SLA_ENTREGA_DIAS[tipoCompra] : null;
+  const prazoAviso = (() => {
+    if (prazoAvisoDias == null || !neededBy) return null;
+    const minDate = new Date(); minDate.setHours(0, 0, 0, 0); minDate.setDate(minDate.getDate() + prazoAvisoDias);
+    const chosen = new Date(neededBy + "T00:00:00");
+    return chosen < minDate ? prazoAvisoDias : null;
+  })();
 
   const { data: sectors } = useQuery({
     queryKey: ["sectors"],
@@ -124,6 +138,8 @@ function NewRequest() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     if (new Date(needed_by + "T00:00:00") < today) return toast.error("A data necessária não pode ser anterior a hoje");
     if (justification.length < 5) return toast.error("Justificativa muito curta");
+    if (!tipoCompra) return toast.error("Selecione o tipo de compra");
+    if (urgente && !urgenciaJustificativa.trim()) return toast.error("Informe a justificativa da urgência");
 
     const validRows = rows.map((r) => ({
       ...r,
@@ -152,7 +168,10 @@ function NewRequest() {
         priority,
         cost_center_id: cost_center_id || null,
         item_id: first.item_id || null,
-      })
+        tipo_compra: tipoCompra,
+        urgente,
+        urgencia_justificativa: urgente ? urgenciaJustificativa.trim() : null,
+      } as any)
       .select("id,number")
       .single();
 
@@ -305,8 +324,11 @@ function NewRequest() {
 
         <Card className="p-6 space-y-5">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Detalhes</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2"><Label>Data necessária *</Label><Input name="needed_by" type="date" /></div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Data necessária *</Label>
+              <Input name="needed_by" type="date" value={neededBy} onChange={(e) => setNeededBy(e.target.value)} />
+            </div>
             <div className="space-y-2"><Label>Prioridade *</Label>
               <Select name="priority" defaultValue="media"><SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -316,11 +338,36 @@ function NewRequest() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Tipo de compra *</Label>
+              <Select value={tipoCompra} onValueChange={setTipoCompra}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="materia_prima">Matéria-prima</SelectItem>
+                  <SelectItem value="insumos_outros">Insumos / Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          {prazoAviso != null && (
+            <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+              Atenção: o prazo padrão de entrega para este tipo é de {prazoAviso} {prazoAviso === 1 ? "dia" : "dias"}; a data de necessidade escolhida é menor que isso.
+            </p>
+          )}
           <div className="space-y-2">
             <Label>Justificativa *</Label>
             <Textarea name="justification" rows={3} />
           </div>
+          <div className="flex items-center gap-3">
+            <Switch id="urgente" checked={urgente} onCheckedChange={setUrgente} />
+            <Label htmlFor="urgente">Urgente</Label>
+          </div>
+          {urgente && (
+            <div className="space-y-2">
+              <Label>Justificativa da urgência *</Label>
+              <Textarea rows={2} value={urgenciaJustificativa} onChange={(e) => setUrgenciaJustificativa(e.target.value)} />
+            </div>
+          )}
         </Card>
 
         <Card className="p-6 space-y-4">

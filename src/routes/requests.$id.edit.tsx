@@ -93,6 +93,9 @@ function EditRequest() {
       justification: req.justification,
       priority: req.priority,
       cost_center_id: req.cost_center_id ?? "",
+      tipo_compra: (req as any).tipo_compra ?? "",
+      urgente: !!(req as any).urgente,
+      urgencia_justificativa: (req as any).urgencia_justificativa ?? "",
     });
   }, [req, form]);
 
@@ -170,6 +173,8 @@ function EditRequest() {
       const today = new Date(); today.setHours(0, 0, 0, 0);
       if (new Date(form.needed_by + "T00:00:00") < today) return toast.error("A data necessária não pode ser anterior a hoje");
       if ((form.justification ?? "").trim().length < 5) return toast.error("Justificativa muito curta");
+      if (!form.tipo_compra) return toast.error("Selecione o tipo de compra");
+      if (form.urgente && !(form.urgencia_justificativa ?? "").trim()) return toast.error("Informe a justificativa da urgência");
 
       validRows = rows.map((r) => ({
         ...r,
@@ -199,7 +204,10 @@ function EditRequest() {
         quantity: firstQty,
         unit: firstUnit,
         item_id: firstItemId,
-      }).eq("id", id);
+        tipo_compra: form.tipo_compra,
+        urgente: form.urgente,
+        urgencia_justificativa: form.urgente ? form.urgencia_justificativa.trim() : null,
+      } as any).eq("id", id);
       if (error) { setBusy(false); return toast.error(error.message); }
 
       // Sync request_items: delete removed, update existing, insert new
@@ -365,11 +373,32 @@ function EditRequest() {
                   </select>
                 </div>
                 <div className="space-y-2 md:col-span-2"><Label>Data necessária *</Label><Input type="date" value={form.needed_by} onChange={(e) => set("needed_by", e.target.value)} /></div>
+                <div className="space-y-2">
+                  <Label>Tipo de compra *</Label>
+                  <select className={selectClassName} value={form.tipo_compra} onChange={(e) => set("tipo_compra", e.target.value)}>
+                    <option value="" disabled>Selecione</option>
+                    <option value="materia_prima">Matéria-prima</option>
+                    <option value="insumos_outros">Insumos / Outros</option>
+                  </select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Justificativa *</Label>
                 <Textarea rows={3} value={form.justification} onChange={(e) => set("justification", e.target.value)} />
               </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox" id="urgente" className="h-4 w-4"
+                  checked={form.urgente} onChange={(e) => set("urgente", e.target.checked)}
+                />
+                <Label htmlFor="urgente">Urgente</Label>
+              </div>
+              {form.urgente && (
+                <div className="space-y-2">
+                  <Label>Justificativa da urgência *</Label>
+                  <Textarea rows={2} value={form.urgencia_justificativa} onChange={(e) => set("urgencia_justificativa", e.target.value)} />
+                </div>
+              )}
             </Card>
           </>
         )}
