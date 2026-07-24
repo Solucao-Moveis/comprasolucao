@@ -16,3 +16,14 @@ export function prazoEntregaPadraoHoras(tipoCompra: string | null | undefined, u
   }
   return null;
 }
+
+// Prazo-limite de entrega em dias a partir da aprovação (decided_at), usado
+// pra calcular o "fora do prazo acordado". Mesma fórmula usada dentro da
+// função compras.set_expected_delivery — não deixar as duas divergirem.
+export function prazoLimiteEntregaDias(tipoCompra: string | null | undefined, urgente: boolean): number | null {
+  if (urgente) return 1;
+  if (tipoCompra === "materia_prima" || tipoCompra === "insumos_outros") {
+    return SLA_ENTREGA_DIAS[tipoCompra];
+  }
+  return null;
+}

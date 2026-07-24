@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { StatusBadge, PriorityBadge, ClassificationBadge, UrgenteBadge } from "@/components/StatusBadge";
+import { StatusBadge, PriorityBadge, ClassificationBadge, UrgenteBadge, ForaDoPrazoBadge } from "@/components/StatusBadge";
+import { prazoLimiteEntregaDias } from "@/lib/sla";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -38,6 +39,7 @@ function RequestDetail() {
   const [buyQty, setBuyQty] = useState<Record<string, string>>({});
   const [arriveQty, setArriveQty] = useState<Record<string, string>>({});
   const [expectedDelivery, setExpectedDelivery] = useState("");
+  const [atrasoJustificativa, setAtrasoJustificativa] = useState("");
   const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
   const [poDialogOpen, setPoDialogOpen] = useState(false);
   const [poDialogTarget, setPoDialogTarget] = useState<any | null>(null); // null = novo pedido; objeto = editando um existente
@@ -148,7 +150,8 @@ function RequestDetail() {
   // mantém o input da previsão de entrega em sincronia com o valor salvo
   useEffect(() => {
     setExpectedDelivery((req as any)?.expected_delivery_date ?? "");
-  }, [(req as any)?.expected_delivery_date]);
+    setAtrasoJustificativa((req as any)?.atraso_justificativa ?? "");
+  }, [(req as any)?.expected_delivery_date, (req as any)?.atraso_justificativa]);
 
   // preenche o estado de rejeição de item a partir do que já está salvo, sem sobrescrever edição em curso
   useEffect(() => {
@@ -481,6 +484,12 @@ function RequestDetail() {
   const canDelete = roles.includes("admin") || (req.requester_id === user?.id && req.status === "pendente");
   const canEdit = canDelete;
   const canPurchase = (roles.includes("comprador") || roles.includes("admin")) && (req.status === "aprovado" || req.status === "parcial" || req.status === "comprado") && !req.arrived_at;
+  // prazo-limite de entrega (decided_at + prazo do tipo/urgência) — mesma fórmula da função no banco
+  const prazoLimiteDias = prazoLimiteEntregaDias((req as any).tipo_compra, (req as any).urgente);
+  const prazoLimite = req.decided_at && prazoLimiteDias != null
+    ? new Date(new Date(req.decided_at).getFullYear(), new Date(req.decided_at).getMonth(), new Date(req.decided_at).getDate() + prazoLimiteDias)
+    : null;
+  const excedePrazoEntrega = !!prazoLimite && !!expectedDelivery && new Date(expectedDelivery + "T00:00:00") > prazoLimite;
   // itens rejeitados na aprovação ficam fora dos cálculos de "tudo comprado"/"tudo chegado"
   const activeItems = (reqItems ?? []).filter((it: any) => !it.rejected);
   const itemsFullyPurchased = activeItems.length === 0 ||
@@ -557,10 +566,14 @@ function RequestDetail() {
 
   // só comprador/admin preenche a previsão de entrega do fornecedor
   const saveExpectedDelivery = async () => {
+    if (excedePrazoEntrega && !atrasoJustificativa.trim()) {
+      return toast.error("A previsão está fora do prazo acordado — informe a justificativa");
+    }
     setBusy(true);
     const { error } = await (supabase as any).rpc("set_expected_delivery", {
       p_request_id: id,
       p_date: expectedDelivery || null,
+      p_justificativa: excedePrazoEntrega ? atrasoJustificativa.trim() : null,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -1005,6 +1018,9 @@ function RequestDetail() {
           {canPurchase ? (
             <div className="space-y-1.5">
               <Label htmlFor="expected_delivery" className="text-xs text-muted-foreground">Previsão de entrega do fornecedor</Label>
+              {prazoLimite && (
+                <p className="text-xs text-muted-foreground">Prazo limite (SLA): {format(prazoLimite, "dd/MM/yyyy")}</p>
+              )}
               <div className="flex items-center gap-2">
                 <Input
                   id="expected_delivery"
@@ -1017,17 +1033,43 @@ function RequestDetail() {
                   size="sm"
                   variant="outline"
                   onClick={saveExpectedDelivery}
-                  disabled={busy || expectedDelivery === ((req as any).expected_delivery_date ?? "")}
+                  disabled={busy || (expectedDelivery === ((req as any).expected_delivery_date ?? "") && !excedePrazoEntrega)}
                 >
                   Salvar
                 </Button>
               </div>
+              {excedePrazoEntrega && (
+                <Textarea
+                  placeholder="Justificativa do atraso *"
+                  rows={2}
+                  value={atrasoJustificativa}
+                  onChange={(e) => setAtrasoJustificativa(e.target.value)}
+                />
+              )}
+              {(req as any).fora_do_prazo_acordado && (
+                <div className="space-y-1 pt-1">
+                  <ForaDoPrazoBadge />
+                  {(req as any).atraso_justificativa && (
+                    <p className="text-xs text-muted-foreground">{(req as any).atraso_justificativa}</p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <Field
-              label="Previsão de entrega do fornecedor"
-              value={(req as any).expected_delivery_date ? format(new Date(`${(req as any).expected_delivery_date}T00:00:00`), "dd/MM/yyyy") : "—"}
-            />
+            <div className="space-y-1.5">
+              <Field
+                label="Previsão de entrega do fornecedor"
+                value={(req as any).expected_delivery_date ? format(new Date(`${(req as any).expected_delivery_date}T00:00:00`), "dd/MM/yyyy") : "—"}
+              />
+              {(req as any).fora_do_prazo_acordado && (
+                <div className="space-y-1">
+                  <ForaDoPrazoBadge />
+                  {(req as any).atraso_justificativa && (
+                    <p className="text-xs text-muted-foreground">{(req as any).atraso_justificativa}</p>
+                  )}
+                </div>
+              )}
+            </div>
           )}
           <Field label="Data de chegada" value={req.arrived_at ? format(new Date(req.arrived_at), "dd/MM/yyyy HH:mm") : "—"} />
         </Card>

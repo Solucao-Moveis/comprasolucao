@@ -58,3 +58,11 @@ export function UrgenteBadge() {
     </span>
   );
 }
+
+export function ForaDoPrazoBadge() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-amber-600/30 bg-amber-600/15 px-2.5 py-0.5 text-xs font-medium text-amber-600">
+      Fora do prazo acordado
+    </span>
+  );
+}
