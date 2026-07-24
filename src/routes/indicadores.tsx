@@ -153,23 +153,25 @@ function Indicadores() {
       }));
   }, [rows, fromMonth, toMonth]);
 
-  // Médias do mês atual (mesmos 3 tempos do gráfico 2, só o mês corrente, pra visão rápida)
+  // Médias do mês atual (mesmos 3 tempos do gráfico 2, só o mês corrente, pra visão rápida).
+  // Guardadas em horas — Abertura→Aprovação e Aprovação→Compra são exibidas em horas
+  // (comparam direto com o SLA de processamento de 36h/24h), Compra→Chegada em dias.
   const currentMonthAverages = useMemo(() => {
     const nowKey = monthKey(new Date());
     const ca: number[] = [], ac: number[] = [], cc: number[] = [];
     for (const r of rows) {
       if (r.decided_at && r.created_at && monthKey(new Date(r.decided_at)) === nowKey) {
-        ca.push((new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 86400000);
+        ca.push((new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
       }
       if (r.purchased_at && r.decided_at && monthKey(new Date(r.purchased_at)) === nowKey) {
-        ac.push((new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 86400000);
+        ac.push((new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5);
       }
       if (r.arrived_at && r.purchased_at && monthKey(new Date(r.arrived_at)) === nowKey) {
-        cc.push((new Date(r.arrived_at).getTime() - new Date(r.purchased_at).getTime()) / 86400000);
+        cc.push((new Date(r.arrived_at).getTime() - new Date(r.purchased_at).getTime()) / 36e5);
       }
     }
     const avg = (arr: number[]) => (arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null);
-    return { ca: avg(ca), ac: avg(ac), cc: avg(cc) };
+    return { caHoras: avg(ca), acHoras: avg(ac), ccDias: cc.length ? Number((cc.reduce((a, b) => a + b, 0) / cc.length / 24).toFixed(1)) : null };
   }, [rows]);
 
   // Tabela de dados brutos — 1 linha por SC (filtrada pelo mês de abertura), paginada
@@ -191,6 +193,30 @@ function Indicadores() {
 
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Abertura → Aprovação (mês atual)
+          </div>
+          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.caHoras != null ? `${currentMonthAverages.caHoras} h` : "—"}</div>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Aprovação → Compra (mês atual)
+          </div>
+          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.acHoras != null ? `${currentMonthAverages.acHoras} h` : "—"}</div>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="h-4 w-4" />
+            Compra → Chegada (mês atual)
+          </div>
+          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.ccDias != null ? `${currentMonthAverages.ccDias} d` : "—"}</div>
+        </Card>
+      </div>
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Indicadores</h1>
@@ -238,30 +264,6 @@ function Indicadores() {
           </ResponsiveContainer>
         )}
       </Card>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Abertura → Aprovação (mês atual)
-          </div>
-          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.ca != null ? `${currentMonthAverages.ca} d` : "—"}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Aprovação → Compra (mês atual)
-          </div>
-          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.ac != null ? `${currentMonthAverages.ac} d` : "—"}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Compra → Chegada (mês atual)
-          </div>
-          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.cc != null ? `${currentMonthAverages.cc} d` : "—"}</div>
-        </Card>
-      </div>
 
       <Card className="p-5">
         <h3 className="mb-4 text-sm font-semibold">Tempos médios (dias)</h3>
