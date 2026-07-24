@@ -1,6 +1,6 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { LayoutDashboard, FileText, Plus, CheckSquare, Settings, Package, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, FileText, Plus, CheckSquare, Settings, Package, ClipboardCheck, TrendingUp } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { AppShell, type NavItem } from "@/components/AppShell";
@@ -26,6 +26,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const canCreate = roles.includes("solicitante") || roles.includes("admin") || roles.includes("comprador") || roles.includes("aprovador");
   const nav: NavItem[] = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { to: "/indicadores", icon: TrendingUp, label: "Indicadores" },
     { to: "/requests", icon: FileText, label: "Solicitações" },
     { to: "/approvals", icon: CheckSquare, label: "Aprovações" },
     { to: "/evaluations", icon: ClipboardCheck, label: "Avaliações" },

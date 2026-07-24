@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ItemsRouteImport } from './routes/items'
+import { Route as IndicadoresRouteImport } from './routes/indicadores'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ApprovalsRouteImport } from './routes/approvals'
@@ -33,6 +34,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const ItemsRoute = ItemsRouteImport.update({
   id: '/items',
   path: '/items',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndicadoresRoute = IndicadoresRouteImport.update({
+  id: '/indicadores',
+  path: '/indicadores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/indicadores': typeof IndicadoresRoute
   '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/evaluations/$id': typeof EvaluationsIdRoute
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/indicadores': typeof IndicadoresRoute
   '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/evaluations/$id': typeof EvaluationsIdRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/approvals': typeof ApprovalsRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/indicadores': typeof IndicadoresRoute
   '/items': typeof ItemsRoute
   '/reset-password': typeof ResetPasswordRoute
   '/evaluations/$id': typeof EvaluationsIdRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/auth'
     | '/dashboard'
+    | '/indicadores'
     | '/items'
     | '/reset-password'
     | '/evaluations/$id'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/auth'
     | '/dashboard'
+    | '/indicadores'
     | '/items'
     | '/reset-password'
     | '/evaluations/$id'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/auth'
     | '/dashboard'
+    | '/indicadores'
     | '/items'
     | '/reset-password'
     | '/evaluations/$id'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   ApprovalsRoute: typeof ApprovalsRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  IndicadoresRoute: typeof IndicadoresRoute
   ItemsRoute: typeof ItemsRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   EvaluationsIdRoute: typeof EvaluationsIdRoute
@@ -235,6 +248,13 @@ declare module '@tanstack/react-router' {
       path: '/items'
       fullPath: '/items'
       preLoaderRoute: typeof ItemsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/indicadores': {
+      id: '/indicadores'
+      path: '/indicadores'
+      fullPath: '/indicadores'
+      preLoaderRoute: typeof IndicadoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -351,6 +371,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApprovalsRoute: ApprovalsRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  IndicadoresRoute: IndicadoresRoute,
   ItemsRoute: ItemsRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   EvaluationsIdRoute: EvaluationsIdRoute,
