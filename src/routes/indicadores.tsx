@@ -9,12 +9,15 @@ import { Link } from "@tanstack/react-router";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid } from "recharts";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle } from "lucide-react";
 import { prazoLimiteEntregaDias } from "@/lib/sla";
 
 export const Route = createFileRoute("/indicadores")({
   component: () => <AppLayout><Indicadores /></AppLayout>,
 });
+
+// Mesmo prazo máximo de processamento (aprovação → compra) já usado no /dashboard antigo
+const PROCESSAMENTO_SLA_HORAS = 36;
 
 const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 const monthLabel = (key: string) => {
@@ -201,12 +204,22 @@ function Indicadores() {
           </div>
           <div className="mt-1 text-3xl font-bold">{currentMonthAverages.caHoras != null ? `${currentMonthAverages.caHoras} h` : "—"}</div>
         </Card>
-        <Card className="p-5">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="h-4 w-4" />
-            Aprovação → Compra (mês atual)
+        <Card className={currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS ? "p-5 border-destructive/50 bg-destructive/5" : "p-5"}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <TrendingUp className="h-4 w-4" />
+              Aprovação → Compra (mês atual)
+            </div>
+            {currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS && (
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+            )}
           </div>
-          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.acHoras != null ? `${currentMonthAverages.acHoras} h` : "—"}</div>
+          <div className={`mt-1 text-3xl font-bold ${currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS ? "text-destructive" : ""}`}>
+            {currentMonthAverages.acHoras != null ? `${currentMonthAverages.acHoras} h` : "—"}
+          </div>
+          {currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS && (
+            <p className="mt-0.5 text-xs text-destructive">passou do prazo máximo de {PROCESSAMENTO_SLA_HORAS}h</p>
+          )}
         </Card>
         <Card className="p-5">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
