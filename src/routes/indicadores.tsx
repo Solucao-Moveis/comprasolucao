@@ -4,9 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "@tanstack/react-router";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid } from "recharts";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { prazoLimiteEntregaDias } from "@/lib/sla";
@@ -67,6 +68,20 @@ function Indicadores() {
     return { ...r, abertaTardia, foraDoPrazoAcordado, entregueNoPrazo, fornecedorCumpriu };
   }), [list]);
 
+  // Filtro de período (De/Até), aplicado aos dois gráficos e à tabela
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      for (const field of [r.created_at, r.decided_at, r.purchased_at, r.arrived_at]) {
+        if (field) set.add(monthKey(new Date(field)));
+      }
+    }
+    return Array.from(set).sort();
+  }, [rows]);
+  const [fromMonth, setFromMonth] = useState<string>("");
+  const [toMonth, setToMonth] = useState<string>("");
+  const inRange = (key: string) => (!fromMonth || key >= fromMonth) && (!toMonth || key <= toMonth);
+
   // Gráfico 1 — saúde de prazo (%), uma série por indicador, cada um com seu mês de referência
   const slaSeries = useMemo(() => {
     const buckets = new Map<string, { at: { y: number; t: number }; fp: { y: number; t: number }; en: { y: number; t: number }; fc: { y: number; t: number } }>();
@@ -94,6 +109,7 @@ function Indicadores() {
     }
     const pct = (b: { y: number; t: number }) => (b.t > 0 ? Math.round((b.y / b.t) * 100) : null);
     return Array.from(buckets.entries())
+      .filter(([key]) => inRange(key))
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, b]) => ({
         month: monthLabel(key),
@@ -102,7 +118,7 @@ function Indicadores() {
         "Entregue no prazo": pct(b.en),
         "Fornecedor cumpriu o prometido": pct(b.fc),
       }));
-  }, [rows]);
+  }, [rows, fromMonth, toMonth]);
 
   // Gráfico 2 — tempos médios (dias), mesmo padrão do /dashboard antigo, em série mensal
   const durationSeries = useMemo(() => {
@@ -127,6 +143,7 @@ function Indicadores() {
     }
     const avg = (arr: number[]) => (arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null);
     return Array.from(buckets.entries())
+      .filter(([key]) => inRange(key))
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, b]) => ({
         month: monthLabel(key),
@@ -134,16 +151,19 @@ function Indicadores() {
         "Aprovação → Compra": avg(b.ac),
         "Compra → Chegada": avg(b.cc),
       }));
-  }, [rows]);
+  }, [rows, fromMonth, toMonth]);
 
-  // Tabela de dados brutos — 1 linha por SC, paginada
+  // Tabela de dados brutos — 1 linha por SC (filtrada pelo mês de abertura), paginada
   const [page, setPage] = useState(0);
   const pageSize = 25;
   const sortedRows = useMemo(
-    () => [...rows].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
-    [rows]
+    () => rows
+      .filter((r: any) => !r.created_at || inRange(monthKey(new Date(r.created_at))))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+    [rows, fromMonth, toMonth]
   );
   const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  useEffect(() => setPage(0), [fromMonth, toMonth]);
   const pageRows = sortedRows.slice(page * pageSize, page * pageSize + pageSize);
 
   const tipoLabel = (t: string | null) => (t === "materia_prima" ? "Matéria-prima" : t === "insumos_outros" ? "Insumos/Outros" : "—");
@@ -152,9 +172,31 @@ function Indicadores() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Indicadores</h1>
-        <p className="text-sm text-muted-foreground">Tendência mensal de prazo e SLA das solicitações de compra</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Indicadores</h1>
+          <p className="text-sm text-muted-foreground">Tendência mensal de prazo e SLA das solicitações de compra</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={fromMonth || "all"} onValueChange={(v) => setFromMonth(v === "all" ? "" : v)}>
+            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="De" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Desde o início</SelectItem>
+              {availableMonths.map((k) => <SelectItem key={k} value={k}>{monthLabel(k)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">até</span>
+          <Select value={toMonth || "all"} onValueChange={(v) => setToMonth(v === "all" ? "" : v)}>
+            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Até" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Mais recente</SelectItem>
+              {availableMonths.map((k) => <SelectItem key={k} value={k}>{monthLabel(k)}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {(fromMonth || toMonth) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFromMonth(""); setToMonth(""); }}>Limpar</Button>
+          )}
+        </div>
       </div>
 
       <Card className="p-5">
