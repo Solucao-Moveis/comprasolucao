@@ -175,6 +175,7 @@ function RequestDetail() {
       if (missingReason) return toast.error(`Informe o motivo da rejeição de "${missingReason.description}"`);
     }
     setBusy(true);
+    const newlyRejected: { description: string; reason: string }[] = [];
     if (reqItems) {
       for (const it of reqItems as any[]) {
         const rj = itemRejections[it.id];
@@ -186,6 +187,7 @@ function RequestDetail() {
           rejection_reason: rj.rejected ? rj.reason.trim() : null,
         } as any).eq("id", it.id);
         if (riErr) { setBusy(false); return toast.error(`Item "${it.description}": ${riErr.message}`); }
+        if (rj.rejected) newlyRejected.push({ description: it.description, reason: rj.reason.trim() });
       }
     }
     const { error } = await supabase.from("purchase_requests").update({
@@ -193,6 +195,18 @@ function RequestDetail() {
     }).eq("id", id);
     setBusy(false);
     if (error) return toast.error(error.message);
+    // avisa o solicitante de cada item rejeitado, pra ele rever o motivo e, se
+    // for o caso, abrir uma nova solicitação corrigindo o que impediu a compra
+    if (newlyRejected.length > 0) {
+      await supabase.from("notifications").insert(
+        newlyRejected.map((r) => ({
+          user_id: req.requester_id,
+          request_id: id,
+          title: `Item rejeitado — ${req.number}`,
+          body: `O item "${r.description}" foi rejeitado: ${r.reason}. Revise o motivo e, se for o caso, abra uma nova solicitação corrigindo o que impediu a compra.`,
+        }))
+      );
+    }
     toast.success(newStatus === "aprovado" ? "Solicitação aprovada" : "Solicitação negada");
     qc.invalidateQueries({ queryKey: ["request", id] });
     qc.invalidateQueries({ queryKey: ["request_items", id] });
