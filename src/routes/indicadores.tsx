@@ -48,78 +48,6 @@ function Indicadores() {
 
   const list = (data ?? []) as any[];
 
-  const counts = {
-    pendente: list.filter((r) => r.status === "pendente").length,
-    aprovado: list.filter((r) => r.status === "aprovado").length,
-    negado: list.filter((r) => r.status === "negado").length,
-    comprado: list.filter((r) => r.status === "comprado").length,
-    finalizado: list.filter((r) => r.status === "finalizado").length,
-  };
-
-  const bySector = Object.values(
-    list.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
-      const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
-      acc[name] = acc[name] ?? { name, total: 0 };
-      acc[name].total++;
-      return acc;
-    }, {})
-  );
-
-  const byStatus = [
-    { name: "Pendente", value: counts.pendente },
-    { name: "Aprovado", value: counts.aprovado },
-    { name: "Negado", value: counts.negado },
-    { name: "Comprado", value: counts.comprado },
-    { name: "Finalizado", value: counts.finalizado },
-  ];
-
-  const [ccMonth, setCcMonth] = useState<string>("all");
-  const [ccDetail, setCcDetail] = useState<string | null>(null);
-
-  const purchasesList = useMemo(
-    () => list.filter((r: any) => r.purchase_amount && r.purchased_at),
-    [list]
-  );
-
-  const ccMonthOptions = useMemo(() => {
-    const set = new Set<string>();
-    purchasesList.forEach((r: any) => {
-      const d = new Date(r.purchased_at);
-      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    });
-    return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [purchasesList]);
-
-  const ccFiltered = useMemo(
-    () =>
-      purchasesList.filter((r: any) => {
-        if (ccMonth === "all") return true;
-        const d = new Date(r.purchased_at);
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` === ccMonth;
-      }),
-    [purchasesList, ccMonth]
-  );
-
-  const purchaseTotal = (r: any) => Number(r.purchase_amount || 0);
-  const byCostCenter = Object.values(
-    ccFiltered.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
-      const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
-      acc[name] = acc[name] ?? { name, total: 0 };
-      acc[name].total += purchaseTotal(r);
-      return acc;
-    }, {})
-  );
-  const totalSpent = byCostCenter.reduce((sum, c: any) => sum + c.total, 0);
-  const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const ccDetailRows = ccDetail
-    ? ccFiltered.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
-    : [];
-  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + purchaseTotal(r), 0);
-  const fmtMonth = (k: string) => {
-    const [y, m] = k.split("-");
-    return `${m}/${y}`;
-  };
-
   // Indicadores calculados por SC — mesma regra usada no aviso de criação (Fase 1) e no
   // cálculo do prazo-limite de entrega (Fase 2), sem gravar nada novo no banco.
   const rows = useMemo(() => list.map((r: any) => {
@@ -159,6 +87,64 @@ function Indicadores() {
   const [fromMonth, setFromMonth] = useState<string>("");
   const [toMonth, setToMonth] = useState<string>("");
   const inRange = (key: string) => (!fromMonth || key >= fromMonth) && (!toMonth || key <= toMonth);
+  const periodLabel = fromMonth || toMonth
+    ? `${fromMonth ? monthLabel(fromMonth) : "início"}–${toMonth ? monthLabel(toMonth) : "atual"}`
+    : null;
+
+  // Solicitações por setor / distribuição por status — respeitam o filtro De/Até (mês de abertura)
+  const openedInRange = useMemo(
+    () => rows.filter((r: any) => !r.created_at || inRange(monthKey(new Date(r.created_at)))),
+    [rows, fromMonth, toMonth]
+  );
+
+  const counts = {
+    pendente: openedInRange.filter((r) => r.status === "pendente").length,
+    aprovado: openedInRange.filter((r) => r.status === "aprovado").length,
+    negado: openedInRange.filter((r) => r.status === "negado").length,
+    comprado: openedInRange.filter((r) => r.status === "comprado").length,
+    finalizado: openedInRange.filter((r) => r.status === "finalizado").length,
+  };
+
+  const bySector = Object.values(
+    openedInRange.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
+      const name = r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—";
+      acc[name] = acc[name] ?? { name, total: 0 };
+      acc[name].total++;
+      return acc;
+    }, {})
+  );
+
+  const byStatus = [
+    { name: "Pendente", value: counts.pendente },
+    { name: "Aprovado", value: counts.aprovado },
+    { name: "Negado", value: counts.negado },
+    { name: "Comprado", value: counts.comprado },
+    { name: "Finalizado", value: counts.finalizado },
+  ];
+
+  // Valor de compras por centro de custo — mesmo filtro De/Até, aplicado sobre o mês da compra
+  const [ccDetail, setCcDetail] = useState<string | null>(null);
+
+  const purchasesList = useMemo(
+    () => rows.filter((r: any) => r.purchase_amount && r.purchased_at && inRange(monthKey(new Date(r.purchased_at)))),
+    [rows, fromMonth, toMonth]
+  );
+
+  const purchaseTotal = (r: any) => Number(r.purchase_amount || 0);
+  const byCostCenter = Object.values(
+    purchasesList.reduce((acc: Record<string, { name: string; total: number }>, r: any) => {
+      const name = r.cost_centers ? r.cost_centers.name : "Sem CC";
+      acc[name] = acc[name] ?? { name, total: 0 };
+      acc[name].total += purchaseTotal(r);
+      return acc;
+    }, {})
+  );
+  const totalSpent = byCostCenter.reduce((sum, c: any) => sum + c.total, 0);
+  const fmtBRL = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const ccDetailRows = ccDetail
+    ? purchasesList.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
+    : [];
+  const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + purchaseTotal(r), 0);
 
   // Gráfico 1 — saúde de prazo (%), uma série por indicador, cada um com seu mês de referência
   const slaSeries = useMemo(() => {
@@ -401,7 +387,7 @@ function Indicadores() {
         </Card>
         <Card className="p-5">
           <h3 className="mb-4 text-sm font-semibold">Distribuição por status</h3>
-          {list.length === 0 ? (
+          {openedInRange.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">Sem dados ainda</p>
           ) : (
             <ResponsiveContainer width="100%" height={260}>
@@ -419,19 +405,11 @@ function Indicadores() {
 
       <Card className="p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold">Valor de compras por centro de custo</h3>
-          <div className="flex items-center gap-3">
-            <Select value={ccMonth} onValueChange={setCcMonth}>
-              <SelectTrigger className="h-8 w-[160px]"><SelectValue placeholder="Mês" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos os meses</SelectItem>
-                {ccMonthOptions.map((k) => (
-                  <SelectItem key={k} value={k}>{fmtMonth(k)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-foreground">{fmtBRL(totalSpent)}</span></div>
-          </div>
+          <h3 className="text-sm font-semibold">
+            Valor de compras por centro de custo
+            {periodLabel && <span className="ml-2 text-xs font-normal text-muted-foreground">({periodLabel})</span>}
+          </h3>
+          <div className="text-sm text-muted-foreground">Total: <span className="font-semibold text-foreground">{fmtBRL(totalSpent)}</span></div>
         </div>
         {byCostCenter.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">Nenhuma compra registrada com valor no período</p>
@@ -522,7 +500,7 @@ function Indicadores() {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              Compras — {ccDetail} {ccMonth !== "all" && <span className="text-sm font-normal text-muted-foreground">({fmtMonth(ccMonth)})</span>}
+              Compras — {ccDetail} {periodLabel && <span className="text-sm font-normal text-muted-foreground">({periodLabel})</span>}
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-auto">
