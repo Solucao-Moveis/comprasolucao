@@ -323,8 +323,8 @@ function Indicadores() {
         {slaSeries.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">Sem dados ainda</p>
         ) : (
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={slaSeries} margin={{ top: 10, right: 16, left: 0, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={340}>
+            <LineChart data={slaSeries} margin={{ top: 26, right: 16, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 250)" />
               <XAxis dataKey="month" stroke="oklch(0.5 0.03 255)" fontSize={11} />
               <YAxis domain={[0, 100]} stroke="oklch(0.5 0.03 255)" fontSize={11} tickFormatter={(v) => `${v}%`} />
@@ -333,9 +333,9 @@ function Indicadores() {
               <Line type="monotone" dataKey="SC aberta tardia" stroke={LINE_COLORS.abertaTardia} connectNulls strokeWidth={2} dot={{ r: 3 }}
                 label={{ position: "top", fontSize: 10, fill: LINE_COLORS.abertaTardia, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
               <Line type="monotone" dataKey="Fora do prazo acordado" stroke={LINE_COLORS.foraDoPrazoAcordado} connectNulls strokeWidth={2} dot={{ r: 3 }}
-                label={{ position: "bottom", fontSize: 10, fill: LINE_COLORS.foraDoPrazoAcordado, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
+                label={{ position: "top", fontSize: 10, fill: LINE_COLORS.foraDoPrazoAcordado, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
               <Line type="monotone" dataKey="Entregue no prazo" stroke={LINE_COLORS.entregueNoPrazo} connectNulls strokeWidth={2} dot={{ r: 3 }}
-                label={{ position: "bottom", fontSize: 10, fill: LINE_COLORS.entregueNoPrazo, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
+                label={{ position: "top", fontSize: 10, fill: LINE_COLORS.entregueNoPrazo, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
               <Line type="monotone" dataKey="Fornecedor cumpriu o prometido" stroke={LINE_COLORS.fornecedorCumpriu} connectNulls strokeWidth={2} dot={{ r: 3 }}
                 label={{ position: "top", fontSize: 10, fill: LINE_COLORS.fornecedorCumpriu, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
             </LineChart>
@@ -348,16 +348,19 @@ function Indicadores() {
         {durationSeries.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">Sem dados ainda</p>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={durationSeries} margin={{ top: 10, right: 16, left: 0, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={durationSeries} margin={{ top: 26, right: 16, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.015 250)" />
               <XAxis dataKey="month" stroke="oklch(0.5 0.03 255)" fontSize={11} />
               <YAxis stroke="oklch(0.5 0.03 255)" fontSize={11} tickFormatter={(v) => `${v}d`} />
               <Tooltip contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }} formatter={(v: number) => `${v} dias`} />
               <Legend />
-              <Line type="monotone" dataKey="Abertura → Aprovação" stroke="oklch(0.65 0.13 230)" connectNulls strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Aprovação → Compra" stroke="oklch(0.6 0.15 300)" connectNulls strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Compra → Chegada" stroke="oklch(0.55 0.2 20)" connectNulls strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Abertura → Aprovação" stroke="oklch(0.65 0.13 230)" connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "top", fontSize: 10, fill: "oklch(0.65 0.13 230)", formatter: (v: number) => (v != null ? `${v}d` : "") }} />
+              <Line type="monotone" dataKey="Aprovação → Compra" stroke="oklch(0.6 0.15 300)" connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "top", fontSize: 10, fill: "oklch(0.6 0.15 300)", formatter: (v: number) => (v != null ? `${v}d` : "") }} />
+              <Line type="monotone" dataKey="Compra → Chegada" stroke="oklch(0.55 0.2 20)" connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "top", fontSize: 10, fill: "oklch(0.55 0.2 20)", formatter: (v: number) => (v != null ? `${v}d` : "") }} />
             </LineChart>
           </ResponsiveContainer>
         )}
