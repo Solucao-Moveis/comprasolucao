@@ -27,7 +27,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (!loading && user) navigate({ to: "/dashboard" }); }, [loading, user, navigate]);
+  useEffect(() => { if (!loading && user) navigate({ to: "/indicadores" }); }, [loading, user, navigate]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -66,7 +66,7 @@ function AuthPage() {
       email: parsed.data.email,
       password: parsed.data.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}/indicadores`,
         // SMERP: 'app' diz ao trigger do banco que este cadastro é do sistema compras
         data: { full_name: parsed.data.full_name, app: "compras" },
       },

@@ -39,7 +39,7 @@ function ResetPasswordPage() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Senha redefinida com sucesso");
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/indicadores" });
   };
 
   return (

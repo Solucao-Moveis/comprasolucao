@@ -38,7 +38,7 @@ function AdminPage() {
   });
 
   if (loading || rolesLoading) return <div className="text-muted-foreground">Carregando...</div>;
-  if (!isAdmin) return <Navigate to="/dashboard" />;
+  if (!isAdmin) return <Navigate to="/indicadores" />;
 
   const setApprover = async (sectorId: string, approverId: string | null) => {
     const { error } = await supabase.from("sectors").update({ approver_id: approverId }).eq("id", sectorId);
