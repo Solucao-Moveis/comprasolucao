@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ALLOWED_SECTOR_CODES } from "@/lib/sectors";
+import { DESPESA_GERAL_CODE } from "@/lib/items";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -341,7 +342,7 @@ function EditRequest() {
                           <Label>Descrição *</Label>
                           <Input
                             value={row.description}
-                            disabled={!!row.item_id && !isBuyer}
+                            disabled={!!row.item_id && !isBuyer && selected?.code !== DESPESA_GERAL_CODE}
                             onChange={(e) => updateRow(row.uid, { description: e.target.value })}
                           />
                         </div>

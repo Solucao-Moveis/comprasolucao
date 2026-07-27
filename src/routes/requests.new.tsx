@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { Paperclip, X, Plus, Check, ChevronsUpDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SLA_ENTREGA_DIAS } from "@/lib/sla";
+import { DESPESA_GERAL_CODE } from "@/lib/items";
 
 export const Route = createFileRoute("/requests/new")({
   component: () => <AppLayout><NewRequest /></AppLayout>,
@@ -291,7 +292,7 @@ function NewRequest() {
                       <Input
                         value={row.description}
                         placeholder="Selecione o código ou digite a descrição"
-                        disabled={!!row.item_id && !isBuyer}
+                        disabled={!!row.item_id && !isBuyer && selected?.code !== DESPESA_GERAL_CODE}
                         onChange={(e) => updateRow(row.uid, { description: e.target.value })}
                       />
                     </div>
