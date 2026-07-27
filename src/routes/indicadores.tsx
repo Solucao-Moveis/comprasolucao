@@ -330,10 +330,14 @@ function Indicadores() {
               <YAxis domain={[0, 100]} stroke="oklch(0.5 0.03 255)" fontSize={11} tickFormatter={(v) => `${v}%`} />
               <Tooltip contentStyle={{ background: "oklch(1 0 0)", border: "1px solid oklch(0.9 0.015 250)", borderRadius: 8 }} formatter={(v: number) => `${v}%`} />
               <Legend />
-              <Line type="monotone" dataKey="SC aberta tardia" stroke={LINE_COLORS.abertaTardia} connectNulls strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Fora do prazo acordado" stroke={LINE_COLORS.foraDoPrazoAcordado} connectNulls strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Entregue no prazo" stroke={LINE_COLORS.entregueNoPrazo} connectNulls strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="Fornecedor cumpriu o prometido" stroke={LINE_COLORS.fornecedorCumpriu} connectNulls strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="SC aberta tardia" stroke={LINE_COLORS.abertaTardia} connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "top", fontSize: 10, fill: LINE_COLORS.abertaTardia, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
+              <Line type="monotone" dataKey="Fora do prazo acordado" stroke={LINE_COLORS.foraDoPrazoAcordado} connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "bottom", fontSize: 10, fill: LINE_COLORS.foraDoPrazoAcordado, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
+              <Line type="monotone" dataKey="Entregue no prazo" stroke={LINE_COLORS.entregueNoPrazo} connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "bottom", fontSize: 10, fill: LINE_COLORS.entregueNoPrazo, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
+              <Line type="monotone" dataKey="Fornecedor cumpriu o prometido" stroke={LINE_COLORS.fornecedorCumpriu} connectNulls strokeWidth={2} dot={{ r: 3 }}
+                label={{ position: "top", fontSize: 10, fill: LINE_COLORS.fornecedorCumpriu, formatter: (v: number) => (v != null ? `${v}%` : "") }} />
             </LineChart>
           </ResponsiveContainer>
         )}
