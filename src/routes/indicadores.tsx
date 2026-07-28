@@ -89,8 +89,12 @@ function Indicadores() {
     }
     return { min, max };
   }, [rows]);
-  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
-  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  // Padrão: mês atual (usuário pode limpar pra ver todo o histórico ou escolher outro período)
+  const [fromDate, setFromDate] = useState<Date | undefined>(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [toDate, setToDate] = useState<Date | undefined>(() => new Date());
   const fromMonth = fromDate ? monthKey(fromDate) : "";
   const toMonth = toDate ? monthKey(toDate) : "";
   const inRange = (key: string) => (!fromMonth || key >= fromMonth) && (!toMonth || key <= toMonth);
@@ -265,6 +269,21 @@ function Indicadores() {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Indicadores</h1>
+          <p className="text-sm text-muted-foreground">Tendência mensal de prazo e SLA das solicitações de compra</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <DateField label="Desde o início" date={fromDate} onSelect={setFromDate} bounds={dataDateBounds} />
+          <span className="text-sm text-muted-foreground">até</span>
+          <DateField label="Mais recente" date={toDate} onSelect={setToDate} bounds={dataDateBounds} />
+          {(fromDate || toDate) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFromDate(undefined); setToDate(undefined); }}>Limpar</Button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-5">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -297,21 +316,6 @@ function Indicadores() {
           </div>
           <div className="mt-1 text-3xl font-bold">{topAverages.ccDias != null ? `${topAverages.ccDias} d` : "—"}</div>
         </Card>
-      </div>
-
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Indicadores</h1>
-          <p className="text-sm text-muted-foreground">Tendência mensal de prazo e SLA das solicitações de compra</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DateField label="Desde o início" date={fromDate} onSelect={setFromDate} bounds={dataDateBounds} />
-          <span className="text-sm text-muted-foreground">até</span>
-          <DateField label="Mais recente" date={toDate} onSelect={setToDate} bounds={dataDateBounds} />
-          {(fromDate || toDate) && (
-            <Button size="sm" variant="ghost" onClick={() => { setFromDate(undefined); setToDate(undefined); }}>Limpar</Button>
-          )}
-        </div>
       </div>
 
       <Card className="p-5">
