@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, Ca
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, CalendarIcon, PiggyBank } from "lucide-react";
 import { prazoLimiteEntregaDias } from "@/lib/sla";
 
 export const Route = createFileRoute("/indicadores")({
@@ -156,6 +156,65 @@ function Indicadores() {
     ? purchasesList.filter((r: any) => (r.cost_centers ? r.cost_centers.name : "Sem CC") === ccDetail)
     : [];
   const ccDetailTotal = ccDetailRows.reduce((s, r: any) => s + purchaseTotal(r), 0);
+
+  // SAVE — economia por queda de preço unitário entre compras consecutivas do mesmo item
+  // (compra_entries dá o preço/quantidade por evento, mais preciso que o purchase_amount
+  // agregado da SC inteira). Comparação usa o histórico completo; o filtro De/Até só entra
+  // depois, na hora de somar os eventos, pra não perder a "compra anterior" na borda do período.
+  const { data: purchaseEntriesData } = useQuery({
+    queryKey: ["indicadores-purchase-entries"],
+    queryFn: async () => {
+      const { data: entries } = await supabase
+        .from("purchase_entries")
+        .select("id,request_item_id,quantity,unit_price,created_at,request_items(item_id,items(code,description))" as any);
+      return entries ?? [];
+    },
+  });
+
+  const saveEvents = useMemo(() => {
+    const byItem = new Map<string, any[]>();
+    for (const e of (purchaseEntriesData ?? []) as any[]) {
+      const itemId = e.request_items?.item_id;
+      if (!itemId) continue;
+      if (!byItem.has(itemId)) byItem.set(itemId, []);
+      byItem.get(itemId)!.push(e);
+    }
+    const events: { itemId: string; code: string; description: string; date: string; valor: number }[] = [];
+    byItem.forEach((arr, itemId) => {
+      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const items = arr[0]?.request_items?.items;
+      for (let i = 1; i < arr.length; i++) {
+        const prev = arr[i - 1], cur = arr[i];
+        const prevUnit = Number(prev.unit_price), curUnit = Number(cur.unit_price);
+        if (curUnit < prevUnit) {
+          events.push({
+            itemId,
+            code: items?.code ?? "—",
+            description: items?.description ?? "—",
+            date: cur.created_at,
+            valor: (prevUnit - curUnit) * Number(cur.quantity),
+          });
+        }
+      }
+    });
+    return events;
+  }, [purchaseEntriesData]);
+
+  const saveByProduct = useMemo(() => {
+    const inRangeEvents = saveEvents.filter((e) => inRange(monthKey(new Date(e.date))));
+    const byItem = new Map<string, { code: string; description: string; total: number; count: number }>();
+    for (const e of inRangeEvents) {
+      if (!byItem.has(e.itemId)) byItem.set(e.itemId, { code: e.code, description: e.description, total: 0, count: 0 });
+      const entry = byItem.get(e.itemId)!;
+      entry.total += e.valor;
+      entry.count++;
+    }
+    return Array.from(byItem.values()).sort((a, b) => b.total - a.total);
+  }, [saveEvents, fromMonth, toMonth]);
+
+  const saveTotal = saveByProduct.reduce((s, p) => s + p.total, 0);
+  const saveAverage = saveByProduct.length > 0 ? saveTotal / saveByProduct.length : null;
+  const [saveDetailOpen, setSaveDetailOpen] = useState(false);
 
   // Gráfico 1 — saúde de prazo (%), uma série por indicador, cada um com seu mês de referência
   const slaSeries = useMemo(() => {
@@ -317,6 +376,18 @@ function Indicadores() {
           <div className="mt-1 text-3xl font-bold">{topAverages.ccDias != null ? `${topAverages.ccDias} d` : "—"}</div>
         </Card>
       </div>
+
+      <Card className="p-5 cursor-pointer transition-colors hover:bg-muted/30" onClick={() => setSaveDetailOpen(true)}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <PiggyBank className="h-4 w-4" />
+            SAVE — economia média por produto <span className="text-xs">{topPeriodSuffix}</span>
+          </div>
+          <span className="text-xs text-muted-foreground">Clique para ver por produto</span>
+        </div>
+        <div className="mt-1 text-3xl font-bold">{saveAverage != null ? fmtBRL(saveAverage) : "—"}</div>
+        <p className="text-xs text-muted-foreground">Total no período: {fmtBRL(saveTotal)} em {saveByProduct.length} produto{saveByProduct.length === 1 ? "" : "s"}</p>
+      </Card>
 
       <Card className="p-5">
         <h3 className="mb-4 text-sm font-semibold">Saúde de prazo (%)</h3>
@@ -545,6 +616,52 @@ function Indicadores() {
                     <td className="px-2 py-2" colSpan={4}>Total</td>
                     <td className="px-2 py-2 text-right">{fmtBRL(ccDetailTotal)}</td>
                     <td />
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={saveDetailOpen} onOpenChange={setSaveDetailOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              SAVE — economia por produto {periodLabel && <span className="text-sm font-normal text-muted-foreground">({periodLabel})</span>}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-2">Produto</th>
+                  <th className="px-2 py-2 text-center">Nº de quedas</th>
+                  <th className="px-2 py-2 text-right">Média por queda</th>
+                  <th className="px-2 py-2 text-right">Total economizado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {saveByProduct.length === 0 && (
+                  <tr><td colSpan={4} className="px-2 py-6 text-center text-muted-foreground">Nenhuma queda de preço registrada no período</td></tr>
+                )}
+                {saveByProduct.map((p) => (
+                  <tr key={p.code + p.description} className="border-t">
+                    <td className="px-2 py-2">
+                      <span className="font-mono text-xs text-muted-foreground mr-2">{p.code}</span>
+                      {p.description}
+                    </td>
+                    <td className="px-2 py-2 text-center">{p.count}</td>
+                    <td className="px-2 py-2 text-right">{fmtBRL(p.total / p.count)}</td>
+                    <td className="px-2 py-2 text-right font-medium">{fmtBRL(p.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              {saveByProduct.length > 0 && (
+                <tfoot>
+                  <tr className="border-t font-semibold">
+                    <td className="px-2 py-2" colSpan={3}>Total</td>
+                    <td className="px-2 py-2 text-right">{fmtBRL(saveTotal)}</td>
                   </tr>
                 </tfoot>
               )}
