@@ -383,12 +383,16 @@ function Indicadores() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <PiggyBank className="h-4 w-4" />
-            SAVE — economia média por produto <span className="text-xs">{topPeriodSuffix}</span>
+            SAVE — economia total <span className="text-xs">{topPeriodSuffix}</span>
           </div>
           <span className="text-xs text-muted-foreground">Clique para ver por produto</span>
         </div>
-        <div className="mt-1 text-3xl font-bold">{saveAverage != null ? fmtBRL(saveAverage) : "—"}</div>
-        <p className="text-xs text-muted-foreground">Total no período: {fmtBRL(saveTotal)} em {saveByProduct.length} produto{saveByProduct.length === 1 ? "" : "s"}</p>
+        <div className="mt-1 text-3xl font-bold">{fmtBRL(saveTotal)}</div>
+        <p className="text-xs text-muted-foreground">
+          {saveByProduct.length > 0
+            ? `Média de ${fmtBRL(saveAverage!)} por produto, em ${saveByProduct.length} produto${saveByProduct.length === 1 ? "" : "s"}`
+            : "Nenhuma queda de preço registrada no período"}
+        </p>
       </Card>
 
       <Card className="p-5">
