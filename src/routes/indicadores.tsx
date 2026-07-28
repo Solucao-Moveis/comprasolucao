@@ -5,12 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Link } from "@tanstack/react-router";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, LabelList } from "recharts";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle } from "lucide-react";
+import { ptBR } from "date-fns/locale";
+import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, CalendarIcon } from "lucide-react";
 import { prazoLimiteEntregaDias } from "@/lib/sla";
 
 export const Route = createFileRoute("/indicadores")({
@@ -75,20 +77,25 @@ function Indicadores() {
   }), [list]);
 
   // Filtro de período (De/Até), aplicado aos dois gráficos e à tabela
-  const availableMonths = useMemo(() => {
-    const set = new Set<string>();
+  const dataDateBounds = useMemo(() => {
+    let min: Date | undefined, max: Date | undefined;
     for (const r of rows) {
       for (const field of [r.created_at, r.decided_at, r.purchased_at, r.arrived_at]) {
-        if (field) set.add(monthKey(new Date(field)));
+        if (!field) continue;
+        const d = new Date(field);
+        if (!min || d < min) min = d;
+        if (!max || d > max) max = d;
       }
     }
-    return Array.from(set).sort();
+    return { min, max };
   }, [rows]);
-  const [fromMonth, setFromMonth] = useState<string>("");
-  const [toMonth, setToMonth] = useState<string>("");
+  const [fromDate, setFromDate] = useState<Date | undefined>(undefined);
+  const [toDate, setToDate] = useState<Date | undefined>(undefined);
+  const fromMonth = fromDate ? monthKey(fromDate) : "";
+  const toMonth = toDate ? monthKey(toDate) : "";
   const inRange = (key: string) => (!fromMonth || key >= fromMonth) && (!toMonth || key <= toMonth);
-  const periodLabel = fromMonth || toMonth
-    ? `${fromMonth ? monthLabel(fromMonth) : "início"}–${toMonth ? monthLabel(toMonth) : "atual"}`
+  const periodLabel = fromDate || toDate
+    ? `${fromDate ? format(fromDate, "dd/MM/yyyy") : "início"}–${toDate ? format(toDate, "dd/MM/yyyy") : "atual"}`
     : null;
 
   // Solicitações por setor / distribuição por status — respeitam o filtro De/Até (mês de abertura)
@@ -297,23 +304,11 @@ function Indicadores() {
           <p className="text-sm text-muted-foreground">Tendência mensal de prazo e SLA das solicitações de compra</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={fromMonth || "all"} onValueChange={(v) => setFromMonth(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="De" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Desde o início</SelectItem>
-              {availableMonths.map((k) => <SelectItem key={k} value={k}>{monthLabel(k)}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <DateField label="Desde o início" date={fromDate} onSelect={setFromDate} bounds={dataDateBounds} />
           <span className="text-sm text-muted-foreground">até</span>
-          <Select value={toMonth || "all"} onValueChange={(v) => setToMonth(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Até" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Mais recente</SelectItem>
-              {availableMonths.map((k) => <SelectItem key={k} value={k}>{monthLabel(k)}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          {(fromMonth || toMonth) && (
-            <Button size="sm" variant="ghost" onClick={() => { setFromMonth(""); setToMonth(""); }}>Limpar</Button>
+          <DateField label="Mais recente" date={toDate} onSelect={setToDate} bounds={dataDateBounds} />
+          {(fromDate || toDate) && (
+            <Button size="sm" variant="ghost" onClick={() => { setFromDate(undefined); setToDate(undefined); }}>Limpar</Button>
           )}
         </div>
       </div>
@@ -553,5 +548,30 @@ function Indicadores() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function DateField({ label, date, onSelect, bounds }: {
+  label: string; date: Date | undefined; onSelect: (d: Date | undefined) => void; bounds: { min?: Date; max?: Date };
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="h-9 w-[160px] justify-start font-normal">
+          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+          {date ? format(date, "dd/MM/yyyy") : label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          locale={ptBR}
+          selected={date}
+          onSelect={(d) => { onSelect(d); setOpen(false); }}
+          disabled={bounds.min || bounds.max ? { before: bounds.min, after: bounds.max } : undefined}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
