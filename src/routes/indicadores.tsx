@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, CalendarIcon, PiggyBank } from "lucide-react";
 import { prazoLimiteEntregaDias } from "@/lib/sla";
+import { DESPESA_GERAL_CODE } from "@/lib/items";
 
 export const Route = createFileRoute("/indicadores")({
   component: () => <AppLayout><Indicadores /></AppLayout>,
@@ -181,8 +182,9 @@ function Indicadores() {
     }
     const events: { itemId: string; code: string; description: string; date: string; valor: number }[] = [];
     byItem.forEach((arr, itemId) => {
-      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       const items = arr[0]?.request_items?.items;
+      if (items?.code === DESPESA_GERAL_CODE) return; // código genérico, preço não é comparável entre compras
+      arr.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       for (let i = 1; i < arr.length; i++) {
         const prev = arr[i - 1], cur = arr[i];
         const prevUnit = Number(prev.unit_price), curUnit = Number(cur.unit_price);
