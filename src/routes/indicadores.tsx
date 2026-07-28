@@ -224,26 +224,27 @@ function Indicadores() {
       }));
   }, [rows, fromMonth, toMonth]);
 
-  // Médias do mês atual (mesmos 3 tempos do gráfico 2, só o mês corrente, pra visão rápida).
+  // Médias dos 3 tempos do gráfico 2, só que resumidas em cards no topo — segue o mesmo
+  // filtro De/Até do resto da página (sem filtro = todo o período, igual aos outros cards).
   // Guardadas em horas — Abertura→Aprovação e Aprovação→Compra são exibidas em horas
   // (comparam direto com o SLA de processamento de 36h/24h), Compra→Chegada em dias.
-  const currentMonthAverages = useMemo(() => {
-    const nowKey = monthKey(new Date());
+  const topAverages = useMemo(() => {
     const ca: number[] = [], ac: number[] = [], cc: number[] = [];
     for (const r of rows) {
-      if (r.decided_at && r.created_at && monthKey(new Date(r.decided_at)) === nowKey) {
+      if (r.decided_at && r.created_at && inRange(monthKey(new Date(r.decided_at)))) {
         ca.push((new Date(r.decided_at).getTime() - new Date(r.created_at).getTime()) / 36e5);
       }
-      if (r.purchased_at && r.decided_at && monthKey(new Date(r.purchased_at)) === nowKey) {
+      if (r.purchased_at && r.decided_at && inRange(monthKey(new Date(r.purchased_at)))) {
         ac.push((new Date(r.purchased_at).getTime() - new Date(r.decided_at).getTime()) / 36e5);
       }
-      if (r.arrived_at && r.purchased_at && monthKey(new Date(r.arrived_at)) === nowKey) {
+      if (r.arrived_at && r.purchased_at && inRange(monthKey(new Date(r.arrived_at)))) {
         cc.push((new Date(r.arrived_at).getTime() - new Date(r.purchased_at).getTime()) / 36e5);
       }
     }
     const avg = (arr: number[]) => (arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null);
     return { caHoras: avg(ca), acHoras: avg(ac), ccDias: cc.length ? Number((cc.reduce((a, b) => a + b, 0) / cc.length / 24).toFixed(1)) : null };
-  }, [rows]);
+  }, [rows, fromMonth, toMonth]);
+  const topPeriodSuffix = periodLabel ? `(${periodLabel})` : "(todo o período)";
 
   // Tabela de dados brutos — 1 linha por SC (filtrada pelo mês de abertura), paginada
   const [page, setPage] = useState(0);
@@ -268,33 +269,33 @@ function Indicadores() {
         <Card className="p-5">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp className="h-4 w-4" />
-            Abertura → Aprovação (mês atual)
+            Abertura → Aprovação <span className="text-xs">{topPeriodSuffix}</span>
           </div>
-          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.caHoras != null ? `${currentMonthAverages.caHoras} h` : "—"}</div>
+          <div className="mt-1 text-3xl font-bold">{topAverages.caHoras != null ? `${topAverages.caHoras} h` : "—"}</div>
         </Card>
-        <Card className={currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS ? "p-5 border-destructive/50 bg-destructive/5" : "p-5"}>
+        <Card className={topAverages.acHoras != null && topAverages.acHoras > PROCESSAMENTO_SLA_HORAS ? "p-5 border-destructive/50 bg-destructive/5" : "p-5"}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <TrendingUp className="h-4 w-4" />
-              Aprovação → Compra (mês atual)
+              Aprovação → Compra <span className="text-xs">{topPeriodSuffix}</span>
             </div>
-            {currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS && (
+            {topAverages.acHoras != null && topAverages.acHoras > PROCESSAMENTO_SLA_HORAS && (
               <AlertTriangle className="h-4 w-4 text-destructive" />
             )}
           </div>
-          <div className={`mt-1 text-3xl font-bold ${currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS ? "text-destructive" : ""}`}>
-            {currentMonthAverages.acHoras != null ? `${currentMonthAverages.acHoras} h` : "—"}
+          <div className={`mt-1 text-3xl font-bold ${topAverages.acHoras != null && topAverages.acHoras > PROCESSAMENTO_SLA_HORAS ? "text-destructive" : ""}`}>
+            {topAverages.acHoras != null ? `${topAverages.acHoras} h` : "—"}
           </div>
-          {currentMonthAverages.acHoras != null && currentMonthAverages.acHoras > PROCESSAMENTO_SLA_HORAS && (
+          {topAverages.acHoras != null && topAverages.acHoras > PROCESSAMENTO_SLA_HORAS && (
             <p className="mt-0.5 text-xs text-destructive">passou do prazo máximo de {PROCESSAMENTO_SLA_HORAS}h</p>
           )}
         </Card>
         <Card className="p-5">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <TrendingUp className="h-4 w-4" />
-            Compra → Chegada (mês atual)
+            Compra → Chegada <span className="text-xs">{topPeriodSuffix}</span>
           </div>
-          <div className="mt-1 text-3xl font-bold">{currentMonthAverages.ccDias != null ? `${currentMonthAverages.ccDias} d` : "—"}</div>
+          <div className="mt-1 text-3xl font-bold">{topAverages.ccDias != null ? `${topAverages.ccDias} d` : "—"}</div>
         </Card>
       </div>
 
