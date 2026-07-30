@@ -1,22 +1,35 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Progress } from "@/components/ui/progress";
 import { SituacaoCadastralBadge, SimplesNacionalBadge } from "@/components/StatusBadge";
-import { formatCnpj } from "@/lib/cnpj";
-import { Plus } from "lucide-react";
+import { buscarCnpj, formatCnpj, mapToFornecedorRow, onlyDigits } from "@/lib/cnpj";
+import { useAuth } from "@/lib/auth";
+import { toast } from "sonner";
+import { Plus, Upload, FileSpreadsheet } from "lucide-react";
 import { useState } from "react";
+import * as XLSX from "xlsx";
 
 export const Route = createFileRoute("/fornecedores/")({
   component: () => <AppLayout><Fornecedores /></AppLayout>,
 });
 
+type ImportResult = {
+  cnpj: string;
+  label: string;
+  status: "ok" | "duplicado" | "nao_encontrado" | "erro";
+  message?: string;
+};
+
 function Fornecedores() {
   const [search, setSearch] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data } = useQuery({
     queryKey: ["fornecedores"],
@@ -47,9 +60,14 @@ function Fornecedores() {
           <h1 className="text-2xl font-bold">Fornecedores</h1>
           <p className="text-sm text-muted-foreground">Cadastro com dados oficiais consultados por CNPJ</p>
         </div>
-        <Button asChild>
-          <Link to="/fornecedores/new"><Plus className="mr-2 h-4 w-4" /> Novo fornecedor</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-2 h-4 w-4" /> Importar
+          </Button>
+          <Button asChild>
+            <Link to="/fornecedores/new"><Plus className="mr-2 h-4 w-4" /> Novo fornecedor</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -93,6 +111,144 @@ function Fornecedores() {
           </TableBody>
         </Table>
       </Card>
+
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} existingCnpjs={list.map((f) => f.cnpj)} />
     </div>
+  );
+}
+
+function ImportDialog({ open, onOpenChange, existingCnpjs }: {
+  open: boolean; onOpenChange: (v: boolean) => void; existingCnpjs: string[];
+}) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [parsedCnpjs, setParsedCnpjs] = useState<string[] | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [results, setResults] = useState<ImportResult[]>([]);
+
+  const reset = () => { setParsedCnpjs(null); setImporting(false); setResults([]); };
+
+  const handleFile = async (file: File) => {
+    setResults([]);
+    const buf = await file.arrayBuffer();
+    const workbook = XLSX.read(buf, { type: "array" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
+
+    const found = new Set<string>();
+    for (const row of rows) {
+      if (!Array.isArray(row)) continue;
+      for (const cell of row) {
+        const digits = onlyDigits(String(cell ?? ""));
+        if (digits.length === 14) { found.add(digits); break; }
+      }
+    }
+    setParsedCnpjs(Array.from(found));
+    if (found.size === 0) toast.error("Não encontramos nenhum CNPJ (14 dígitos) na planilha.");
+  };
+
+  const handleConfirmImport = async () => {
+    if (!parsedCnpjs || !user) return;
+    setImporting(true);
+    const seen = new Set(existingCnpjs);
+    for (const cnpj of parsedCnpjs) {
+      if (seen.has(cnpj)) {
+        setResults((prev) => [...prev, { cnpj, label: "", status: "duplicado" }]);
+        continue;
+      }
+      try {
+        const raw = await buscarCnpj(cnpj);
+        const row = mapToFornecedorRow(raw, user.id);
+        const { error } = await supabase.from("fornecedores").insert(row as any);
+        if (error) {
+          if (error.code === "23505") {
+            setResults((prev) => [...prev, { cnpj, label: raw.razao_social, status: "duplicado" }]);
+          } else {
+            setResults((prev) => [...prev, { cnpj, label: "", status: "erro", message: error.message }]);
+          }
+        } else {
+          seen.add(cnpj);
+          setResults((prev) => [...prev, { cnpj, label: raw.razao_social, status: "ok" }]);
+        }
+      } catch (err: any) {
+        const notFound = /não encontrado/i.test(err?.message ?? "");
+        setResults((prev) => [...prev, { cnpj, label: "", status: notFound ? "nao_encontrado" : "erro", message: err?.message }]);
+      }
+    }
+    setImporting(false);
+    qc.invalidateQueries({ queryKey: ["fornecedores"] });
+  };
+
+  const statusLabel: Record<ImportResult["status"], string> = {
+    ok: "Importado",
+    duplicado: "Já cadastrado",
+    nao_encontrado: "CNPJ não encontrado",
+    erro: "Erro",
+  };
+  const statusClass: Record<ImportResult["status"], string> = {
+    ok: "text-success",
+    duplicado: "text-muted-foreground",
+    nao_encontrado: "text-destructive",
+    erro: "text-destructive",
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Importar fornecedores</DialogTitle></DialogHeader>
+
+        {!parsedCnpjs && (
+          <label className="flex cursor-pointer flex-col items-center gap-2 rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground hover:bg-accent/40">
+            <FileSpreadsheet className="h-6 w-6" />
+            Clique para escolher uma planilha (.xlsx ou .csv) com uma coluna de CNPJ
+            <input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+            />
+          </label>
+        )}
+
+        {parsedCnpjs && results.length === 0 && !importing && (
+          <div className="space-y-3">
+            <p className="text-sm">Encontramos <strong>{parsedCnpjs.length}</strong> CNPJ{parsedCnpjs.length === 1 ? "" : "s"} na planilha.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={reset}>Escolher outra planilha</Button>
+              <Button onClick={handleConfirmImport}>Importar {parsedCnpjs.length}</Button>
+            </div>
+          </div>
+        )}
+
+        {parsedCnpjs && (importing || results.length > 0) && (
+          <div className="space-y-3">
+            {importing && (
+              <div className="space-y-1">
+                <Progress value={(results.length / parsedCnpjs.length) * 100} />
+                <p className="text-xs text-muted-foreground">Processando {results.length} de {parsedCnpjs.length}...</p>
+              </div>
+            )}
+            <div className="max-h-72 overflow-auto rounded-md border">
+              <table className="w-full text-sm">
+                <tbody>
+                  {results.map((r, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="px-2 py-1.5 font-mono text-xs">{formatCnpj(r.cnpj)}</td>
+                      <td className="px-2 py-1.5 truncate">{r.label || "—"}</td>
+                      <td className={`px-2 py-1.5 text-right text-xs font-medium ${statusClass[r.status]}`}>{statusLabel[r.status]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!importing && (
+              <div className="flex justify-end">
+                <Button onClick={() => { onOpenChange(false); reset(); }}>Fechar</Button>
+              </div>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

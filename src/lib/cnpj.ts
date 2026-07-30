@@ -2,6 +2,14 @@
 // dado público da Receita Federal. Usada no cadastro de fornecedores: os
 // campos vindos daqui ficam congelados no momento do cadastro (sem edição
 // manual nem refresh — ver 20260730100000_fornecedores.sql).
+//
+// A busca passa pela Edge Function `cnpj-lookup` (não é chamada direto do
+// navegador): quando a BrasilAPI aplica rate limit (429), a resposta de
+// erro dela não vem com cabeçalho CORS, e o navegador reporta isso como
+// "bloqueado por CORS" em vez do 429 real — o proxy no servidor evita esse
+// problema e já tenta de novo automaticamente em caso de 429.
+
+import { supabase } from "@/integrations/supabase/client";
 
 export const onlyDigits = (v: string) => v.replace(/\D/g, "");
 
@@ -61,13 +69,14 @@ export async function buscarCnpj(cnpjInput: string): Promise<BrasilApiCnpj> {
   const digits = onlyDigits(cnpjInput);
   if (digits.length !== 14) throw new Error("CNPJ inválido — precisa ter 14 dígitos.");
 
-  const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
-  if (res.status === 404) throw new Error("CNPJ não encontrado na Receita Federal.");
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.message || "Não foi possível consultar o CNPJ agora. Tente novamente.");
+  const { data, error } = await supabase.functions.invoke("cnpj-lookup", { body: { cnpj: digits } });
+  if (error) {
+    const status = (error as any)?.context?.status;
+    if (status === 404) throw new Error("CNPJ não encontrado na Receita Federal.");
+    if (status === 429) throw new Error("Muitas consultas em pouco tempo — aguarde um instante e tente de novo.");
+    throw new Error("Não foi possível consultar o CNPJ agora. Tente novamente.");
   }
-  return res.json();
+  return data as BrasilApiCnpj;
 }
 
 export function mapToFornecedorRow(raw: BrasilApiCnpj, userId: string) {
