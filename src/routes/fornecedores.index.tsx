@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { SituacaoCadastralBadge, SimplesNacionalBadge } from "@/components/StatusBadge";
-import { buscarCnpj, formatCnpj, mapToFornecedorRow, onlyDigits } from "@/lib/cnpj";
+import { buscarCnpj, formatCnpj, mapToFornecedorRow, onlyDigits, sleep } from "@/lib/cnpj";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { Plus, Upload, FileSpreadsheet } from "lucide-react";
@@ -151,11 +151,13 @@ function ImportDialog({ open, onOpenChange, existingCnpjs }: {
     if (!parsedCnpjs || !user) return;
     setImporting(true);
     const seen = new Set(existingCnpjs);
-    for (const cnpj of parsedCnpjs) {
+    for (const [i, cnpj] of parsedCnpjs.entries()) {
       if (seen.has(cnpj)) {
         setResults((prev) => [...prev, { cnpj, label: "", status: "duplicado" }]);
         continue;
       }
+      // espaça as buscas pra não bater no limite de requisições da BrasilAPI
+      if (i > 0) await sleep(1500);
       try {
         const raw = await buscarCnpj(cnpj);
         const row = mapToFornecedorRow(raw, user.id);
