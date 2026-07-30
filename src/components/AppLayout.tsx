@@ -1,6 +1,6 @@
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
-import { FileText, Plus, CheckSquare, Settings, Package, ClipboardCheck, TrendingUp } from "lucide-react";
+import { FileText, Plus, CheckSquare, Settings, Package, ClipboardCheck, TrendingUp, Building2 } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { NotificationsBell } from "@/components/NotificationsBell";
 import { AppShell, type NavItem } from "@/components/AppShell";
@@ -30,6 +30,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
     { to: "/approvals", icon: CheckSquare, label: "Aprovações" },
     { to: "/evaluations", icon: ClipboardCheck, label: "Avaliações" },
     { to: "/items", icon: Package, label: "Itens" },
+    { to: "/fornecedores", icon: Building2, label: "Fornecedores" },
     ...(canCreate ? [{ to: "/requests/new", icon: Plus, label: "Nova" }] : []),
     ...(isAdmin ? [{ to: "/admin", icon: Settings, label: "Administração" }] : []),
   ];

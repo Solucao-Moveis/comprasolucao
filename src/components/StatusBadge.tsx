@@ -66,3 +66,28 @@ export function ForaDoPrazoBadge() {
     </span>
   );
 }
+
+const situacaoCadastralClass: Record<string, string> = {
+  ATIVA: "bg-success/15 text-success border-success/30",
+};
+
+export function SituacaoCadastralBadge({ descricao }: { descricao: string | null }) {
+  const label = descricao || "—";
+  const classes = situacaoCadastralClass[label.toUpperCase()] ?? "bg-destructive/15 text-destructive border-destructive/30";
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", classes)}>
+      {label}
+    </span>
+  );
+}
+
+export function SimplesNacionalBadge({ optante }: { optante: boolean | null }) {
+  const classes = optante
+    ? "bg-success/15 text-success border-success/30"
+    : "bg-muted text-muted-foreground border-border";
+  return (
+    <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", classes)}>
+      Simples Nacional: {optante == null ? "—" : optante ? "Sim" : "Não"}
+    </span>
+  );
+}

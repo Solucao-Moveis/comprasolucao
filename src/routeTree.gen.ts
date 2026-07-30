@@ -17,9 +17,12 @@ import { Route as ApprovalsRouteImport } from './routes/approvals'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as RequestsIndexRouteImport } from './routes/requests.index'
+import { Route as FornecedoresIndexRouteImport } from './routes/fornecedores.index'
 import { Route as EvaluationsIndexRouteImport } from './routes/evaluations.index'
 import { Route as RequestsNewRouteImport } from './routes/requests.new'
 import { Route as RequestsIdRouteImport } from './routes/requests.$id'
+import { Route as FornecedoresNewRouteImport } from './routes/fornecedores.new'
+import { Route as FornecedoresIdRouteImport } from './routes/fornecedores.$id'
 import { Route as EvaluationsNewRouteImport } from './routes/evaluations.new'
 import { Route as EvaluationsIdRouteImport } from './routes/evaluations.$id'
 import { Route as RequestsIdIndexRouteImport } from './routes/requests.$id.index'
@@ -65,6 +68,11 @@ const RequestsIndexRoute = RequestsIndexRouteImport.update({
   path: '/requests/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FornecedoresIndexRoute = FornecedoresIndexRouteImport.update({
+  id: '/fornecedores/',
+  path: '/fornecedores/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EvaluationsIndexRoute = EvaluationsIndexRouteImport.update({
   id: '/evaluations/',
   path: '/evaluations/',
@@ -78,6 +86,16 @@ const RequestsNewRoute = RequestsNewRouteImport.update({
 const RequestsIdRoute = RequestsIdRouteImport.update({
   id: '/requests/$id',
   path: '/requests/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FornecedoresNewRoute = FornecedoresNewRouteImport.update({
+  id: '/fornecedores/new',
+  path: '/fornecedores/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FornecedoresIdRoute = FornecedoresIdRouteImport.update({
+  id: '/fornecedores/$id',
+  path: '/fornecedores/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EvaluationsNewRoute = EvaluationsNewRouteImport.update({
@@ -111,9 +129,12 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/evaluations/$id': typeof EvaluationsIdRoute
   '/evaluations/new': typeof EvaluationsNewRoute
+  '/fornecedores/$id': typeof FornecedoresIdRoute
+  '/fornecedores/new': typeof FornecedoresNewRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
   '/evaluations/': typeof EvaluationsIndexRoute
+  '/fornecedores/': typeof FornecedoresIndexRoute
   '/requests/': typeof RequestsIndexRoute
   '/requests/$id/edit': typeof RequestsIdEditRoute
   '/requests/$id/': typeof RequestsIdIndexRoute
@@ -128,8 +149,11 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/evaluations/$id': typeof EvaluationsIdRoute
   '/evaluations/new': typeof EvaluationsNewRoute
+  '/fornecedores/$id': typeof FornecedoresIdRoute
+  '/fornecedores/new': typeof FornecedoresNewRoute
   '/requests/new': typeof RequestsNewRoute
   '/evaluations': typeof EvaluationsIndexRoute
+  '/fornecedores': typeof FornecedoresIndexRoute
   '/requests': typeof RequestsIndexRoute
   '/requests/$id/edit': typeof RequestsIdEditRoute
   '/requests/$id': typeof RequestsIdIndexRoute
@@ -145,9 +169,12 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/evaluations/$id': typeof EvaluationsIdRoute
   '/evaluations/new': typeof EvaluationsNewRoute
+  '/fornecedores/$id': typeof FornecedoresIdRoute
+  '/fornecedores/new': typeof FornecedoresNewRoute
   '/requests/$id': typeof RequestsIdRouteWithChildren
   '/requests/new': typeof RequestsNewRoute
   '/evaluations/': typeof EvaluationsIndexRoute
+  '/fornecedores/': typeof FornecedoresIndexRoute
   '/requests/': typeof RequestsIndexRoute
   '/requests/$id/edit': typeof RequestsIdEditRoute
   '/requests/$id/': typeof RequestsIdIndexRoute
@@ -164,9 +191,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/evaluations/$id'
     | '/evaluations/new'
+    | '/fornecedores/$id'
+    | '/fornecedores/new'
     | '/requests/$id'
     | '/requests/new'
     | '/evaluations/'
+    | '/fornecedores/'
     | '/requests/'
     | '/requests/$id/edit'
     | '/requests/$id/'
@@ -181,8 +211,11 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/evaluations/$id'
     | '/evaluations/new'
+    | '/fornecedores/$id'
+    | '/fornecedores/new'
     | '/requests/new'
     | '/evaluations'
+    | '/fornecedores'
     | '/requests'
     | '/requests/$id/edit'
     | '/requests/$id'
@@ -197,9 +230,12 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/evaluations/$id'
     | '/evaluations/new'
+    | '/fornecedores/$id'
+    | '/fornecedores/new'
     | '/requests/$id'
     | '/requests/new'
     | '/evaluations/'
+    | '/fornecedores/'
     | '/requests/'
     | '/requests/$id/edit'
     | '/requests/$id/'
@@ -215,9 +251,12 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   EvaluationsIdRoute: typeof EvaluationsIdRoute
   EvaluationsNewRoute: typeof EvaluationsNewRoute
+  FornecedoresIdRoute: typeof FornecedoresIdRoute
+  FornecedoresNewRoute: typeof FornecedoresNewRoute
   RequestsIdRoute: typeof RequestsIdRouteWithChildren
   RequestsNewRoute: typeof RequestsNewRoute
   EvaluationsIndexRoute: typeof EvaluationsIndexRoute
+  FornecedoresIndexRoute: typeof FornecedoresIndexRoute
   RequestsIndexRoute: typeof RequestsIndexRoute
 }
 
@@ -279,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RequestsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/fornecedores/': {
+      id: '/fornecedores/'
+      path: '/fornecedores'
+      fullPath: '/fornecedores/'
+      preLoaderRoute: typeof FornecedoresIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/evaluations/': {
       id: '/evaluations/'
       path: '/evaluations'
@@ -298,6 +344,20 @@ declare module '@tanstack/react-router' {
       path: '/requests/$id'
       fullPath: '/requests/$id'
       preLoaderRoute: typeof RequestsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fornecedores/new': {
+      id: '/fornecedores/new'
+      path: '/fornecedores/new'
+      fullPath: '/fornecedores/new'
+      preLoaderRoute: typeof FornecedoresNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fornecedores/$id': {
+      id: '/fornecedores/$id'
+      path: '/fornecedores/$id'
+      fullPath: '/fornecedores/$id'
+      preLoaderRoute: typeof FornecedoresIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/evaluations/new': {
@@ -355,9 +415,12 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   EvaluationsIdRoute: EvaluationsIdRoute,
   EvaluationsNewRoute: EvaluationsNewRoute,
+  FornecedoresIdRoute: FornecedoresIdRoute,
+  FornecedoresNewRoute: FornecedoresNewRoute,
   RequestsIdRoute: RequestsIdRouteWithChildren,
   RequestsNewRoute: RequestsNewRoute,
   EvaluationsIndexRoute: EvaluationsIndexRoute,
+  FornecedoresIndexRoute: FornecedoresIndexRoute,
   RequestsIndexRoute: RequestsIndexRoute,
 }
 export const routeTree = rootRouteImport
