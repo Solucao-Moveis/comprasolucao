@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { SituacaoCadastralBadge, SimplesNacionalBadge } from "@/components/StatusBadge";
+import { SituacaoCadastralBadge, RegimeFiscalBadge } from "@/components/StatusBadge";
 import { buscarCnpj, formatCnpj, mapToFornecedorRow, onlyDigits, sleep } from "@/lib/cnpj";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -36,7 +36,7 @@ function Fornecedores() {
     queryFn: async () => {
       const { data: rows } = await supabase
         .from("fornecedores")
-        .select("id,cnpj,razao_social,nome_fantasia,uf,municipio,descricao_situacao_cadastral,opcao_pelo_simples" as any)
+        .select("id,cnpj,razao_social,nome_fantasia,uf,municipio,descricao_situacao_cadastral,opcao_pelo_simples,opcao_pelo_mei,regime_tributario" as any)
         .order("razao_social");
       return rows ?? [];
     },
@@ -89,7 +89,7 @@ function Fornecedores() {
               <TableHead>CNPJ</TableHead>
               <TableHead>UF/Município</TableHead>
               <TableHead>Situação</TableHead>
-              <TableHead>Simples Nacional</TableHead>
+              <TableHead>Classificação fiscal</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -102,7 +102,7 @@ function Fornecedores() {
                 <TableCell className="font-mono text-xs">{formatCnpj(f.cnpj)}</TableCell>
                 <TableCell className="text-muted-foreground">{f.municipio ? `${f.municipio}/${f.uf}` : "—"}</TableCell>
                 <TableCell><SituacaoCadastralBadge descricao={f.descricao_situacao_cadastral} /></TableCell>
-                <TableCell><SimplesNacionalBadge optante={f.opcao_pelo_simples} /></TableCell>
+                <TableCell><RegimeFiscalBadge optante={f.opcao_pelo_simples} mei={f.opcao_pelo_mei} regimeTributario={f.regime_tributario} /></TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (

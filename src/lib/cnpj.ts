@@ -64,6 +64,25 @@ export type BrasilApiCnpj = {
   [key: string]: unknown;
 };
 
+const titleCase = (s: string) => s.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
+
+// Classificação fiscal pra exibição: Simples Nacional/MEI têm prioridade
+// (são o próprio regime); senão, pega o regime do ano mais recente do
+// histórico (ex.: "Lucro Real", "Lucro Presumido"). null = sem dado.
+export function regimeFiscalLabel(
+  optante: boolean | null,
+  mei: boolean | null,
+  regimeTributario: BrasilApiRegimeTributario[] | null,
+): string | null {
+  if (mei) return "MEI";
+  if (optante) return "Simples Nacional";
+  if (regimeTributario && regimeTributario.length > 0) {
+    const latest = [...regimeTributario].sort((a, b) => b.ano - a.ano)[0];
+    if (latest?.forma_de_tributacao) return titleCase(latest.forma_de_tributacao);
+  }
+  return null;
+}
+
 export async function buscarCnpj(cnpjInput: string): Promise<BrasilApiCnpj> {
   const digits = onlyDigits(cnpjInput);
   if (digits.length !== 14) throw new Error("CNPJ inválido — precisa ter 14 dígitos.");

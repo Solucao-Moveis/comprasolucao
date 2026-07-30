@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Search } from "lucide-react";
-import { buscarCnpj, formatCnpj, mapToFornecedorRow, type BrasilApiCnpj } from "@/lib/cnpj";
+import { buscarCnpj, formatCnpj, mapToFornecedorRow, regimeFiscalLabel, type BrasilApiCnpj } from "@/lib/cnpj";
 
 export const Route = createFileRoute("/fornecedores/new")({
   component: () => <AppLayout><NovoFornecedor /></AppLayout>,
@@ -88,7 +88,7 @@ function NovoFornecedor() {
             <Field label="Situação cadastral" value={preview.descricao_situacao_cadastral} />
             <Field label="Porte" value={preview.porte || "—"} />
             <Field label="Natureza jurídica" value={preview.natureza_juridica || "—"} />
-            <Field label="Simples Nacional" value={preview.opcao_pelo_simples ? "Sim" : "Não"} />
+            <Field label="Classificação fiscal" value={regimeFiscalLabel(preview.opcao_pelo_simples, preview.opcao_pelo_mei, preview.regime_tributario) ?? "—"} />
             <Field label="CNAE principal" value={preview.cnae_fiscal_descricao || "—"} />
             <Field label="Data de abertura" value={preview.data_inicio_atividade ? new Date(`${preview.data_inicio_atividade}T00:00:00`).toLocaleDateString("pt-BR") : "—"} />
             <Field

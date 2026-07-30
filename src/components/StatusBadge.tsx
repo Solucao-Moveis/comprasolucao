@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { regimeFiscalLabel } from "@/lib/cnpj";
 
 const map = {
   pendente: "bg-warning/15 text-warning border-warning/30",
@@ -81,13 +82,20 @@ export function SituacaoCadastralBadge({ descricao }: { descricao: string | null
   );
 }
 
-export function SimplesNacionalBadge({ optante }: { optante: boolean | null }) {
-  const classes = optante
+export function RegimeFiscalBadge({ optante, mei, regimeTributario }: {
+  optante: boolean | null;
+  mei: boolean | null;
+  regimeTributario: { ano: number; forma_de_tributacao: string }[] | null;
+}) {
+  const label = regimeFiscalLabel(optante, mei, regimeTributario);
+  const classes = optante || mei
     ? "bg-success/15 text-success border-success/30"
-    : "bg-muted text-muted-foreground border-border";
+    : label
+      ? "bg-info/15 text-info border-info/30"
+      : "bg-muted text-muted-foreground border-border";
   return (
     <span className={cn("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium", classes)}>
-      Simples Nacional: {optante == null ? "—" : optante ? "Sim" : "Não"}
+      {label ?? "—"}
     </span>
   );
 }

@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { SituacaoCadastralBadge, SimplesNacionalBadge } from "@/components/StatusBadge";
+import { SituacaoCadastralBadge, RegimeFiscalBadge } from "@/components/StatusBadge";
 import { formatCnpj } from "@/lib/cnpj";
 import { ArrowLeft } from "lucide-react";
 
@@ -39,7 +39,7 @@ function FornecedorDetalhe() {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold">{f.razao_social}</h1>
           <SituacaoCadastralBadge descricao={f.descricao_situacao_cadastral} />
-          <SimplesNacionalBadge optante={f.opcao_pelo_simples} />
+          <RegimeFiscalBadge optante={f.opcao_pelo_simples} mei={f.opcao_pelo_mei} regimeTributario={f.regime_tributario} />
         </div>
         <p className="text-sm text-muted-foreground">
           {f.nome_fantasia ? `${f.nome_fantasia} — ` : ""}{formatCnpj(f.cnpj)}
