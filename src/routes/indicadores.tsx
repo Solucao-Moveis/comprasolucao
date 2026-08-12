@@ -12,7 +12,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, Ca
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, CalendarIcon, PiggyBank } from "lucide-react";
+import { ChevronLeft, ChevronRight, TrendingUp, AlertTriangle, CalendarIcon } from "lucide-react";
 import { prazoLimiteEntregaDias } from "@/lib/sla";
 import { DESPESA_GERAL_CODE } from "@/lib/items";
 
@@ -379,6 +379,7 @@ function Indicadores() {
         </Card>
       </div>
 
+      {/* SAVE — economia total: oculto por enquanto, vamos usar depois
       <Card className="p-5 cursor-pointer transition-colors hover:bg-muted/30" onClick={() => setSaveDetailOpen(true)}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -394,6 +395,7 @@ function Indicadores() {
             : "Nenhuma queda de preço registrada no período"}
         </p>
       </Card>
+      */}
 
       <Card className="p-5">
         <h3 className="mb-4 text-sm font-semibold">Saúde de prazo (%)</h3>
