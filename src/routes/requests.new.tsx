@@ -135,6 +135,7 @@ function NewRequest() {
     const priority = String(fd.get("priority") ?? "media") as "baixa" | "media" | "alta";
 
     if (!sector_id) return toast.error("Selecione o setor");
+    if (!cost_center_id) return toast.error("Selecione o centro de custo");
     if (!needed_by) return toast.error("Informe a data necessária");
     const today = new Date(); today.setHours(0, 0, 0, 0);
     if (new Date(needed_by + "T00:00:00") < today) return toast.error("A data necessária não pode ser anterior a hoje");
@@ -226,8 +227,8 @@ function NewRequest() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Centro de custo</Label>
-              <Select name="cost_center_id"><SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+              <Label>Centro de custo *</Label>
+              <Select name="cost_center_id"><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>{ccs?.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
