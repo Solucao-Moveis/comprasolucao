@@ -590,7 +590,7 @@ function Indicadores() {
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full text-sm">
+            <table className="w-full whitespace-nowrap text-sm">
               <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-2 py-2">SC</th>
@@ -640,7 +640,7 @@ function Indicadores() {
             </DialogTitle>
           </DialogHeader>
           <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full text-sm">
+            <table className="w-full whitespace-nowrap text-sm">
               <thead className="sticky top-0 bg-background text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-2 py-2">Produto</th>

@@ -807,8 +807,123 @@ function RequestDetail() {
             const hasSavings = rowsTotals.some((r) => r.save != null);
             return (
               <Section title={`Itens (${reqItems.length})`}>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                {/* Celular: cartão por item */}
+                <div className="space-y-3 md:hidden">
+                  {rowsTotals.map(({ it, fullQty, already, remaining, price, total, avg, save, rowEditable, arrived, arrivedRemaining, rowArrivable }, idx) => (
+                    <div key={it.id} className={`rounded-lg border p-3${it.rejected ? " opacity-60" : ""}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[11px] text-muted-foreground">
+                            #{idx + 1}{it.items?.code ? ` · ${it.items.code}` : ""}
+                          </div>
+                          <div className="text-sm font-medium">{it.description}</div>
+                          {it.rejected && (
+                            <div className="mt-0.5 text-xs text-destructive">Rejeitado{it.rejection_reason ? `: ${it.rejection_reason}` : ""}</div>
+                          )}
+                        </div>
+                        {total != null && (
+                          <div className="shrink-0 text-right text-sm font-semibold">
+                            R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Qtd: </span>
+                          {fullQty.toLocaleString("pt-BR")} {it.unit}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Comprado: </span>
+                          <span className={remaining <= 1e-9 ? "font-medium text-success" : ""}>
+                            {already.toLocaleString("pt-BR")}/{fullQty.toLocaleString("pt-BR")}
+                          </span>
+                          {rowEditable && <span className="text-muted-foreground"> (faltam {remaining.toLocaleString("pt-BR")})</span>}
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Chegada: </span>
+                          <span className={arrived >= fullQty - 1e-9 ? "font-medium text-success" : ""}>
+                            {arrived.toLocaleString("pt-BR")}/{fullQty.toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                        {!rowEditable && (
+                          <div>
+                            <span className="text-muted-foreground">{editable ? "Comprar agora" : "Preço un."}: </span>
+                            {price != null ? `R$ ${price.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                          </div>
+                        )}
+                      </div>
+
+                      {avg != null && avg > 0 && (
+                        <div className="mt-1 text-xs text-muted-foreground">Média: R$ {avg.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                      )}
+                      {save != null && save !== 0 && !rowEditable && (
+                        <div className={`text-xs ${save > 0 ? "text-success" : "text-destructive"}`}>
+                          {save > 0 ? "Economia" : "Acima"}: R$ {Math.abs(save).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </div>
+                      )}
+
+                      {rowArrivable && (
+                        <div className="mt-2">
+                          <label className="text-xs text-muted-foreground">Qtd. chegada (máx {arrivedRemaining})</label>
+                          <Input
+                            type="number" step="0.01" min="0" max={arrivedRemaining} placeholder={`Qtd (máx ${arrivedRemaining})`}
+                            value={arriveQty[it.id] ?? String(arrivedRemaining)}
+                            onChange={(e) => setArriveQty((p) => ({ ...p, [it.id]: e.target.value }))}
+                            className="mt-1 h-9"
+                          />
+                        </div>
+                      )}
+                      {rowEditable && (
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Qtd. agora (máx {remaining.toLocaleString("pt-BR")})</label>
+                            <Input
+                              type="number" step="0.01" min="0" max={remaining} placeholder={`Qtd (máx ${remaining})`}
+                              value={buyQty[it.id] ?? String(remaining)}
+                              onChange={(e) => setBuyQty((p) => ({ ...p, [it.id]: e.target.value }))}
+                              className="mt-1 h-9"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Preço un.</label>
+                            <Input
+                              type="number" step="0.01" min="0" placeholder="Preço un."
+                              value={unitPrices[it.id] ?? ""}
+                              onChange={(e) => setUnitPrices((p) => ({ ...p, [it.id]: e.target.value }))}
+                              className="mt-1 h-9"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                    <div className="flex justify-between font-semibold">
+                      <span>{editable ? "Total desta compra" : "Total comprado"}</span>
+                      <span>R$ {grandTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {!editable && anyPartial && req.purchase_amount != null && (
+                      <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                        <span>Valor total já registrado</span>
+                        <span className="font-semibold">R$ {Number(req.purchase_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    {hasSavings && (
+                      <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                        <span>Economia {editable ? "desta compra" : "total"} (vs. preço médio)</span>
+                        <span className={`font-semibold ${grandSave >= 0 ? "text-success" : "text-destructive"}`}>
+                          R$ {grandSave.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Desktop/tablet: tabela */}
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full whitespace-nowrap text-sm">
                     <thead className="text-xs uppercase text-muted-foreground">
                       <tr className="border-b">
                         <th className="py-2 text-left font-medium">#</th>
@@ -1230,8 +1345,31 @@ function RequestDetail() {
       {purchaseEntries && purchaseEntries.length > 0 && (
         <Card className="p-6 space-y-3">
           <h3 className="text-sm font-semibold">Compras registradas</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+
+          {/* Celular: cartão por compra */}
+          <div className="space-y-2 md:hidden">
+            {purchaseEntries.map((e: any) => (
+              <div key={e.id} className="rounded-lg border p-3 text-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate">{e.request_items?.description ?? "—"}</span>
+                  <span className="shrink-0 font-medium">
+                    R$ {(Number(e.unit_price) * Number(e.quantity)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {Number(e.quantity).toLocaleString("pt-BR")} {e.request_items?.unit ?? ""} · R$ {Number(e.unit_price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}/un
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{e.profiles?.full_name ?? e.profiles?.email ?? "—"}</span>
+                  <span>{format(new Date(e.created_at), "dd/MM/yyyy HH:mm")}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop/tablet: tabela */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full whitespace-nowrap text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
                 <tr className="border-b">
                   <th className="py-2 text-left font-medium">Data</th>

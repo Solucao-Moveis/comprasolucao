@@ -231,7 +231,7 @@ function ImportDialog({ open, onOpenChange, existingCnpjs }: {
               </div>
             )}
             <div className="max-h-72 overflow-auto rounded-md border">
-              <table className="w-full text-sm">
+              <table className="w-full whitespace-nowrap text-sm">
                 <tbody>
                   {results.map((r, i) => (
                     <tr key={i} className="border-b last:border-0">

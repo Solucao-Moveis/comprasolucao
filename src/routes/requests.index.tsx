@@ -411,7 +411,7 @@ ${rows.map((r: any) => {
       {/* Desktop/tablet: tabela */}
       <Card className="hidden overflow-hidden md:block">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full whitespace-nowrap text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="hidden w-10 px-3 py-3 md:table-cell">
