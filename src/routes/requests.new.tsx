@@ -382,9 +382,9 @@ function NewRequest() {
           {files.length > 0 && (
             <ul className="space-y-1">
               {files.map((f, i) => (
-                <li key={i} className="flex items-center justify-between rounded bg-muted/50 px-3 py-1.5 text-sm">
-                  <span className="truncate">{f.name} <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(0)} KB)</span></span>
-                  <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
+                <li key={i} className="flex items-center justify-between gap-2 rounded bg-muted/50 px-3 py-1.5 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{f.name} <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(0)} KB)</span></span>
+                  <button type="button" className="shrink-0" onClick={() => setFiles(files.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
                 </li>
               ))}
             </ul>

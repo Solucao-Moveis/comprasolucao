@@ -695,9 +695,9 @@ function RequestDetail() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" size="sm" asChild><Link to="/requests"><ArrowLeft className="mr-2 h-4 w-4" />Voltar</Link></Button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {canEdit ? (
             <Button variant="outline" size="sm" asChild>
               <Link to="/requests/$id/edit" params={{ id }}><Pencil className="mr-2 h-4 w-4" />Editar</Link>
@@ -1300,9 +1300,9 @@ function RequestDetail() {
           <h3 className="text-sm font-semibold">Anexos</h3>
           <ul className="space-y-2">
             {attachments.map((a) => (
-              <li key={a.id} className="flex items-center justify-between rounded bg-muted/40 px-3 py-2 text-sm">
-                <span className="truncate">{a.filename}</span>
-                <Button size="sm" variant="ghost" onClick={() => downloadAtt(a.path, a.filename)}>
+              <li key={a.id} className="flex items-center justify-between gap-2 rounded bg-muted/40 px-3 py-2 text-sm">
+                <span className="min-w-0 flex-1 truncate">{a.filename}</span>
+                <Button size="sm" variant="ghost" className="shrink-0" onClick={() => downloadAtt(a.path, a.filename)}>
                   <Download className="h-4 w-4" />
                 </Button>
               </li>

@@ -335,7 +335,7 @@ function Indicadores() {
           <h1 className="text-2xl font-bold">Indicadores</h1>
           <p className="text-sm text-muted-foreground">Tendência mensal de prazo e SLA das solicitações de compra</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <DateField label="Desde o início" date={fromDate} onSelect={setFromDate} bounds={dataDateBounds} />
           <span className="text-sm text-muted-foreground">até</span>
           <DateField label="Mais recente" date={toDate} onSelect={setToDate} bounds={dataDateBounds} />

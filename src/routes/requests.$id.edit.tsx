@@ -409,9 +409,9 @@ function EditRequest() {
           {visibleAtt.length > 0 && (
             <ul className="space-y-1">
               {visibleAtt.map((a: any) => (
-                <li key={a.id} className="flex items-center justify-between rounded bg-muted/50 px-3 py-1.5 text-sm">
-                  <span className="truncate">{a.filename}</span>
-                  <div className="flex items-center gap-1">
+                <li key={a.id} className="flex items-center justify-between gap-2 rounded bg-muted/50 px-3 py-1.5 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{a.filename}</span>
+                  <div className="flex shrink-0 items-center gap-1">
                     <button type="button" title="Baixar" onClick={() => downloadAtt(a.path, a.filename)}><Download className="h-4 w-4" /></button>
                     <button type="button" title="Remover" onClick={() => setRemovedAtt((r) => [...r, a.id])}><X className="h-4 w-4" /></button>
                   </div>
@@ -427,9 +427,9 @@ function EditRequest() {
           {files.length > 0 && (
             <ul className="space-y-1">
               {files.map((f, i) => (
-                <li key={i} className="flex items-center justify-between rounded bg-muted/50 px-3 py-1.5 text-sm">
-                  <span className="truncate">{f.name} <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(0)} KB)</span></span>
-                  <button type="button" onClick={() => setFiles(files.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
+                <li key={i} className="flex items-center justify-between gap-2 rounded bg-muted/50 px-3 py-1.5 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{f.name} <span className="text-xs text-muted-foreground">({(f.size / 1024).toFixed(0)} KB)</span></span>
+                  <button type="button" className="shrink-0" onClick={() => setFiles(files.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
                 </li>
               ))}
             </ul>
