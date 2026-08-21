@@ -173,6 +173,39 @@ function FornecedorDetalhe() {
         ) : (
           <>
             <p className="text-xs text-muted-foreground">Clique num produto para ver o histórico de preço.</p>
+
+            {/* Celular: cartão por produto */}
+            <div className="space-y-2 md:hidden">
+              {linkedItems.map((it) => {
+                const trend = trendFor(it.id);
+                return (
+                  <button
+                    key={it.id}
+                    type="button"
+                    onClick={() => setSelectedItem(it)}
+                    className="w-full rounded-lg border p-3 text-left"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-mono text-xs text-muted-foreground">{it.code}</div>
+                        <div className="text-sm font-medium">{it.description}</div>
+                      </div>
+                      <div className="shrink-0">
+                        {trend === "up" && <TrendingUp className="h-4 w-4 text-destructive" />}
+                        {trend === "down" && <TrendingDown className="h-4 w-4 text-success" />}
+                      </div>
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{it.avg_price ? fmtBRL(Number(it.avg_price)) : "—"}</span>
+                      <span>{it.last_purchased_at ? new Date(it.last_purchased_at).toLocaleDateString("pt-BR") : "—"}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Desktop/tablet: tabela */}
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -202,6 +235,7 @@ function FornecedorDetalhe() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </>
         )}
       </Card>

@@ -156,7 +156,65 @@ function ItemsPage() {
         <span className="text-xs text-muted-foreground">{filteredItems.length} de {(items ?? []).length}</span>
       </div>
 
-      <Card className="p-0 overflow-hidden">
+      {/* Celular: cartão por item */}
+      <div className="space-y-2 md:hidden">
+        {filteredItems.length === 0 && (
+          <Card className="p-8 text-center text-sm text-muted-foreground">
+            {(items ?? []).length === 0 ? "Nenhum item cadastrado" : "Nenhum item encontrado"}
+          </Card>
+        )}
+        {filteredItems.map((i: any) => (
+          <Card key={i.id} className="p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-mono text-xs text-muted-foreground">{i.code}</div>
+                <div className="text-sm font-medium">{i.description}</div>
+                <div className="text-xs text-muted-foreground">{i.supplier ?? "—"}</div>
+              </div>
+              <div className="flex shrink-0 gap-1">
+                <Button variant="ghost" size="icon" onClick={() => openEdit(i)} aria-label="Editar"><Pencil className="h-4 w-4" /></Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" aria-label="Excluir"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Excluir item?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. O item "{i.code} — {i.description}" será removido do catálogo.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDelete(i.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <div className="text-muted-foreground">Preço médio</div>
+                <div>{Number(i.avg_price) > 0 ? fmtBRL(Number(i.avg_price)) : "—"}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Compras</div>
+                <div>{i.purchase_count}</div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Periodicidade</div>
+                <div>{i.avg_interval_days ? `${Number(i.avg_interval_days).toFixed(0)} d` : "—"}</div>
+              </div>
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Última compra: {i.last_purchased_at ? new Date(i.last_purchased_at).toLocaleDateString("pt-BR") : "—"}
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop/tablet: tabela */}
+      <Card className="hidden p-0 overflow-hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>

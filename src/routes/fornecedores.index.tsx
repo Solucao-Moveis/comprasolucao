@@ -80,7 +80,31 @@ function Fornecedores() {
         <span className="text-xs text-muted-foreground">{filtered.length} de {list.length}</span>
       </div>
 
-      <Card className="p-0 overflow-hidden">
+      {/* Celular: cartão por fornecedor */}
+      <div className="space-y-2 md:hidden">
+        {filtered.length === 0 && (
+          <Card className="p-8 text-center text-sm text-muted-foreground">
+            {list.length === 0 ? "Nenhum fornecedor cadastrado" : "Nenhum fornecedor encontrado"}
+          </Card>
+        )}
+        {filtered.map((f) => (
+          <Link key={f.id} to="/fornecedores/$id" params={{ id: f.id }}>
+            <Card className="p-3">
+              <div className="font-medium">{f.razao_social}</div>
+              {f.nome_fantasia && <div className="text-xs text-muted-foreground">{f.nome_fantasia}</div>}
+              <div className="mt-1 font-mono text-xs text-muted-foreground">{formatCnpj(f.cnpj)}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{f.municipio ? `${f.municipio}/${f.uf}` : "—"}</div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <SituacaoCadastralBadge descricao={f.descricao_situacao_cadastral} />
+                <RegimeFiscalBadge optante={f.opcao_pelo_simples} mei={f.opcao_pelo_mei} regimeTributario={f.regime_tributario} />
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Desktop/tablet: tabela */}
+      <Card className="hidden p-0 overflow-hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>

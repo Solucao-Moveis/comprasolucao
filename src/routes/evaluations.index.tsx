@@ -167,8 +167,37 @@ function EvaluationsList() {
         </div>
       </Card>
 
-      {/* Tabela */}
-      <Card className="overflow-hidden">
+      {/* Celular: cartão por avaliação */}
+      <div className="space-y-2 md:hidden">
+        {filtered.length === 0 && (
+          <Card className="p-8 text-center text-sm text-muted-foreground">Nenhuma avaliação encontrada</Card>
+        )}
+        {filtered.map((e: any) => (
+          <Link key={e.id} to="/evaluations/$id" params={{ id: e.id }}>
+            <Card className="p-3">
+              <div className="flex items-start justify-between gap-2">
+                <span className="min-w-0 flex-1 truncate font-mono text-xs text-primary">{e.number}</span>
+                <span className="shrink-0 text-sm font-semibold">{e.total_points} pts</span>
+              </div>
+              <div className="mt-1 truncate text-sm font-medium">{e.supplier}</div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                <span>{fmtDate(e.evaluation_date)}</span>
+                {e.nf && <span>· NF {e.nf}</span>}
+                <span>· {e.evaluator_name}</span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <ClassificationBadge classification={e.classification} />
+                {e.approved
+                  ? <span className="inline-flex items-center gap-1 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5" />Aprovado</span>
+                  : <span className="inline-flex items-center gap-1 text-xs text-destructive"><XCircle className="h-3.5 w-3.5" />Não aprovado</span>}
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Desktop/tablet: tabela */}
+      <Card className="hidden overflow-hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
