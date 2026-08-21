@@ -25,13 +25,13 @@ export function AppLayout({ children }: { children: ReactNode }) {
   const isAdmin = roles.includes("admin");
   const canCreate = roles.includes("solicitante") || roles.includes("admin") || roles.includes("comprador") || roles.includes("aprovador");
   const nav: NavItem[] = [
-    { to: "/indicadores", icon: TrendingUp, label: "Indicadores" },
-    { to: "/requests", icon: FileText, label: "Solicitações" },
-    { to: "/approvals", icon: CheckSquare, label: "Aprovações" },
+    { to: "/requests", icon: FileText, label: "Solicitações", primary: true },
+    ...(canCreate ? [{ to: "/requests/new", icon: Plus, label: "Nova", primary: true }] : []),
+    { to: "/approvals", icon: CheckSquare, label: "Aprovações", primary: true },
+    { to: "/indicadores", icon: TrendingUp, label: "Indicadores", primary: true },
     { to: "/evaluations", icon: ClipboardCheck, label: "Avaliações" },
     { to: "/items", icon: Package, label: "Itens" },
     { to: "/fornecedores", icon: Building2, label: "Fornecedores" },
-    ...(canCreate ? [{ to: "/requests/new", icon: Plus, label: "Nova" }] : []),
     ...(isAdmin ? [{ to: "/admin", icon: Settings, label: "Administração" }] : []),
   ];
 

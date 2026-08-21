@@ -270,14 +270,20 @@ ${rows.map((r: any) => {
           <h1 className="text-2xl font-bold">Solicitações</h1>
           <p className="text-sm text-muted-foreground">{filtered.length} resultado(s){selected.size > 0 && ` · ${selected.size} selecionada(s)`}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={generateReport} disabled={selected.size === 0}>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="icon" className="sm:hidden" onClick={generateReport} disabled={selected.size === 0} title="Gerar relatório">
+            <FileText className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={generateReport} disabled={selected.size === 0} className="hidden sm:inline-flex">
             <FileText className="mr-2 h-4 w-4" />Gerar relatório
           </Button>
-          <Button variant="outline" onClick={exportCSV}>
+          <Button variant="outline" size="icon" className="sm:hidden" onClick={exportCSV} title="Exportar">
+            <Download className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={exportCSV} className="hidden sm:inline-flex">
             <Download className="mr-2 h-4 w-4" />Exportar{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button asChild><Link to="/requests/new"><Plus className="mr-2 h-4 w-4" />Nova solicitação</Link></Button>
+          <Button asChild><Link to="/requests/new"><Plus className="h-4 w-4 sm:mr-2" /><span className="hidden sm:inline">Nova solicitação</span></Link></Button>
         </div>
       </div>
 
@@ -320,7 +326,90 @@ ${rows.map((r: any) => {
         </div>
       </Card>
 
-      <Card className="overflow-hidden">
+      {/* Celular: lista em cartões (sem tabela) */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 && (
+          <Card className="p-8 text-center text-sm text-muted-foreground">Nenhuma solicitação encontrada</Card>
+        )}
+        {filtered.map((r: any) => {
+          const canModify = roles.includes("admin") || (r.requester_id === user?.id && r.status === "pendente");
+          return (
+            <Card key={r.id} className="p-4">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  className="mt-0.5 shrink-0"
+                  checked={selected.has(r.id)}
+                  onCheckedChange={() => toggleOne(r.id)}
+                  aria-label={`Selecionar ${r.number}`}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <Link to="/requests/$id" params={{ id: r.id }} className="truncate font-mono text-xs text-primary hover:underline">
+                      {r.number}
+                    </Link>
+                    <StatusBadge status={r.status} />
+                  </div>
+                  {r.po_numbers && (
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">Pedido: {r.po_numbers}</div>
+                  )}
+                  <p className="mt-1.5 line-clamp-2 text-sm">{r.description}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>{r.sectors ? `${r.sectors.code} — ${r.sectors.name}` : "—"}</span>
+                    <span>·</span>
+                    <span className="truncate">{r.profiles?.full_name ?? r.profiles?.email}</span>
+                    <span>·</span>
+                    <span>{format(new Date(r.created_at), "dd/MM/yyyy")}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <PriorityBadge priority={r.priority} />
+                    {canModify && (
+                      <div className="flex gap-1">
+                        <Button asChild size="icon" variant="ghost" title="Editar">
+                          <Link to="/requests/$id/edit" params={{ id: r.id }}><Pencil className="h-4 w-4" /></Link>
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="icon" variant="ghost" title="Excluir"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir solicitação?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                A solicitação {r.number} e seus comentários, anexos e histórico serão removidos permanentemente.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={async () => {
+                                  const { data: atts } = await supabase.from("request_attachments").select("path").eq("request_id", r.id);
+                                  if (atts && atts.length > 0) {
+                                    await supabase.storage.from("request-attachments").remove(atts.map((a) => a.path));
+                                  }
+                                  await supabase.from("request_attachments").delete().eq("request_id", r.id);
+                                  await supabase.from("request_comments").delete().eq("request_id", r.id);
+                                  await supabase.from("request_history").delete().eq("request_id", r.id);
+                                  const { error } = await supabase.from("purchase_requests").delete().eq("id", r.id);
+                                  if (error) return toast.error(error.message);
+                                  toast.success("Solicitação excluída");
+                                  qc.invalidateQueries({ queryKey: ["requests"] });
+                                }}
+                              >Excluir</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Desktop/tablet: tabela */}
+      <Card className="hidden overflow-hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
