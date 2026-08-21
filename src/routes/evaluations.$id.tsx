@@ -158,7 +158,28 @@ function EvaluationDetail() {
 
       <Card className="p-6 space-y-3">
         <h3 className="text-sm font-semibold">Questionário</h3>
-        <div className="overflow-x-auto">
+
+        {/* Celular: cartão por pergunta */}
+        <div className="space-y-2 md:hidden">
+          {QUESTIONS.map((q, idx) => (
+            <div key={q.key} className="rounded-lg border p-3">
+              <div className="text-sm">{q.num} - {q.label}</div>
+              <div className="mt-1.5 flex items-center justify-between text-sm">
+                {answers[idx]
+                  ? <span className="font-medium text-success">Sim</span>
+                  : <span className="font-medium text-destructive">Não</span>}
+                <span className="font-medium">{points[idx]} <span className="text-xs text-muted-foreground">/ {q.weight}</span></span>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3 text-sm font-semibold">
+            <span>Total de pontos obtidos</span>
+            <span className="text-base font-bold">{e.total_points}</span>
+          </div>
+        </div>
+
+        {/* Desktop/tablet: tabela */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead className="text-xs uppercase text-muted-foreground">
               <tr className="border-b">
